@@ -1173,7 +1173,7 @@ html, body {
     </div>
     <div class="onboard-footer">
       <button class="next-btn" id="step4-next" disabled onclick="launchApp()">Find my matches →</button>
-      <div style="text-align:center;margin-top:1rem;font-size:0.78rem;color:var(--muted);">Already have an account? <span style="color:var(--ink);font-weight:600;cursor:pointer;" onclick="launchApp()">Sign in</span></div>
+      <div style="text-align:center;margin-top:1rem;font-size:0.78rem;color:var(--muted);">Already have an account? <span style="color:var(--vibe);font-weight:600;cursor:pointer;" onclick="showScreen('screen-signin')">Sign in</span></div>
     </div>
   </div>
 </div>
@@ -1349,10 +1349,10 @@ html, body {
 
 
 <!-- ═══════ YOU TAB ═══════ -->
-<div class="screen" id="screen-you" style="display:none;">
+<div class="screen" id="screen-you">
   <div class="app-topbar">
     <div class="app-logo">candid<span>.</span></div>
-    <button class="notif-btn" style="font-size:0.75rem;font-weight:600;color:var(--muted);background:var(--warm);border:1px solid var(--line);border-radius:100px;width:auto;padding:0.4rem 0.85rem;" onclick="showScreen('onboarding');goStep(1);">Edit profile</button>
+    <button class="notif-btn" style="font-size:0.75rem;font-weight:600;color:var(--muted);background:var(--warm);border:1px solid var(--line);border-radius:100px;width:auto;padding:0.4rem 0.85rem;" onclick="signOut()">Sign out</button>
   </div>
   <div style="padding:1.5rem;">
     <!-- Profile card -->
@@ -1422,7 +1422,7 @@ html, body {
 </div>
 
 <!-- ═══════ MESSAGES TAB ═══════ -->
-<div class="screen" id="screen-messages" style="display:none;">
+<div class="screen" id="screen-messages">
   <div class="app-topbar">
     <div class="app-logo">candid<span>.</span></div>
   </div>
@@ -1628,6 +1628,12 @@ async function doSignIn() {
     err.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Sign in →';
   }
+}
+
+function signOut() {
+  _session = null;
+  localStorage.removeItem('candid_session');
+  showScreen('splash');
 }
 
 // ── SPLASH ──
