@@ -1755,8 +1755,8 @@ async function doSignIn() {
 
   try {
     const data = await supaSignIn(email, password);
-    if (data.error || data.error_description) {
-      if (errEl) { errEl.textContent = data.error_description || data.error; errEl.style.display = 'block'; }
+    if (data.error || data.error_description || data.msg) {
+      if (errEl) { errEl.textContent = data.msg || data.error_description || data.error; errEl.style.display = 'block'; }
       btn.disabled = false; btn.textContent = 'Sign in →'; return;
     }
     const token = data.access_token || data.session?.access_token;
@@ -1799,9 +1799,9 @@ async function launchApp() {
 
   try {
     const signupData = await supaSignUp(email, password);
-    if (signupData.error || signupData.error_description) {
+    if (signupData.error || signupData.error_description || signupData.msg) {
       btn.disabled = false; btn.textContent = 'Find my matches →';
-      alert(signupData.error_description || signupData.error); return;
+      alert(signupData.msg || signupData.error_description || signupData.error); return;
     }
 
     // Get token — from signup response or separate signin
