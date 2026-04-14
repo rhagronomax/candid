@@ -1435,65 +1435,99 @@ html, body {
     <div class="app-logo">candid<span>.</span></div>
     <button class="notif-btn" style="font-size:0.75rem;font-weight:600;color:var(--muted);background:var(--warm);border:1px solid var(--line);border-radius:100px;width:auto;padding:0.4rem 0.85rem;" onclick="signOut()">Sign out</button>
   </div>
-  <div style="padding:1.5rem;">
+  <div style="padding:1.5rem;overflow-y:auto;padding-bottom:6rem;">
+
     <!-- Profile card -->
     <div style="background:var(--ink);border-radius:20px;padding:2rem;color:var(--white);margin-bottom:1.25rem;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:rgba(232,128,58,0.15);border-radius:50%;"></div>
-      <div style="width:64px;height:64px;border-radius:50%;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:1.25rem;border:3px solid rgba(255,255,255,0.15);">🧑‍💼</div>
-      <div style="font-family:Fraunces,serif;font-size:1.4rem;font-weight:400;color:var(--white);letter-spacing:-0.02em;margin-bottom:0.2rem;" id="you-name">Rachel Hor</div>
-      <div style="font-size:0.82rem;color:rgba(255,255,255,0.5);margin-bottom:1.5rem;" id="you-role">The Trust Ecologist™</div>
+      
+      <!-- Photo upload -->
+      <div style="position:relative;width:64px;height:64px;margin-bottom:1.25rem;" onclick="document.getElementById('photo-input').click()">
+        <div id="profile-photo-display" style="width:64px;height:64px;border-radius:50%;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:1.6rem;border:3px solid rgba(255,255,255,0.15);overflow:hidden;">🧑‍💼</div>
+        <div style="position:absolute;bottom:0;right:0;width:20px;height:20px;background:var(--vibe);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;cursor:pointer;">📷</div>
+        <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(this)">
+      </div>
+
+      <div style="font-family:Fraunces,serif;font-size:1.4rem;font-weight:400;color:var(--white);letter-spacing:-0.02em;margin-bottom:0.2rem;" id="you-name">—</div>
+      <div style="font-size:0.82rem;color:rgba(255,255,255,0.5);margin-bottom:1.5rem;" id="you-role">—</div>
       <div style="display:flex;gap:2rem;">
-        <div><div style="font-size:1.3rem;font-weight:600;color:var(--white);">3</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">New finds</div></div>
-        <div><div style="font-size:1.3rem;font-weight:600;color:var(--white);">12</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Viewed you</div></div>
-        <div><div style="font-size:1.3rem;font-weight:600;color:var(--white);">1</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Chemistry</div></div>
+        <div><div class="yc-stat-n" id="you-finds">0</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">New finds</div></div>
+        <div><div class="yc-stat-n">0</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Viewed you</div></div>
+        <div><div class="yc-stat-n">0</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Chemistry</div></div>
       </div>
     </div>
 
-    <!-- Profile sections -->
-    <div style="background:var(--white);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:1.25rem;">
-      <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);">
-        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">What I want to be found for</div>
-        <div style="font-size:0.9rem;color:var(--ink);font-weight:500;" id="you-found">The Trust Ecologist™ — AI trust diagnostics, research, consulting</div>
+    <!-- Trust Signal -->
+    <div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;">
+      <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">Your Trust Signal</div>
+      <div style="display:flex;gap:1rem;">
+        <div style="flex:1;text-align:center;">
+          <div class="ts-bar" id="ts-you-legibility" style="width:100%;height:4px;border-radius:100px;margin-bottom:0.4rem;"></div>
+          <div style="font-size:0.62rem;color:var(--muted);">Legibility</div>
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div class="ts-bar" id="ts-you-suspension" style="width:100%;height:4px;border-radius:100px;margin-bottom:0.4rem;"></div>
+          <div style="font-size:0.62rem;color:var(--muted);">Suspension</div>
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div class="ts-bar" id="ts-you-resonance" style="width:100%;height:4px;border-radius:100px;margin-bottom:0.4rem;"></div>
+          <div style="font-size:0.62rem;color:var(--muted);">Resonance</div>
+        </div>
       </div>
-      <div style="padding:1.25rem 1.5rem;">
-        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">Open to</div>
-        <div style="font-size:0.9rem;color:var(--ink);" id="you-open">All of it — professionally and personally</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:0.75rem;line-height:1.5;" id="ts-you-hint">Fill in your profile below to light up your Trust Signal.</div>
+    </div>
+
+    <!-- Edit Profile -->
+    <div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:1.25rem;">
+      <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:0.88rem;font-weight:600;color:var(--white);">Edit profile</div>
+        <button onclick="saveProfile()" id="save-profile-btn" style="background:var(--vibe);color:var(--ink);border:none;border-radius:100px;padding:0.4rem 1rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;">Save</button>
+      </div>
+      <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem;">
+        <div class="field">
+          <div class="field-label">What I want to be found for</div>
+          <input class="field-input" type="text" id="edit-tagline" placeholder="One line. The truest version." oninput="previewTrustSignal()">
+        </div>
+        <div class="field">
+          <div class="field-label">Current focus <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(professional)</span></div>
+          <input class="field-input" type="text" id="edit-focus" placeholder="What you're actually doing right now." oninput="previewTrustSignal()">
+        </div>
+        <div class="field">
+          <div class="field-label">One thing I've built, solved, or changed</div>
+          <input class="field-input" type="text" id="edit-achievement" placeholder="Your proudest signal." oninput="previewTrustSignal()">
+        </div>
+        <div class="field">
+          <div class="field-label">Open to</div>
+          <input class="field-input" type="text" id="edit-open-to" placeholder="No wrong answers." oninput="previewTrustSignal()">
+        </div>
       </div>
     </div>
 
     <!-- Settings -->
-    <div style="background:var(--white);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:1.25rem;">
+    <div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:1.25rem;">
       <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:0.88rem;font-weight:600;color:var(--ink);">Anonymous mode</div>
+          <div style="font-size:0.88rem;font-weight:600;color:var(--white);">Anonymous mode</div>
           <div style="font-size:0.72rem;color:var(--muted);">They see you. You reveal on connect.</div>
         </div>
         <div class="toggle" id="you-anon-toggle" onclick="toggleAnonYou()"></div>
       </div>
-      <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+      <div style="padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:0.88rem;font-weight:600;color:var(--ink);">Match mode</div>
+          <div style="font-size:0.88rem;font-weight:600;color:var(--white);">Match mode</div>
           <div style="font-size:0.72rem;color:var(--muted);">Professional · Personal · Both</div>
         </div>
         <div style="font-size:0.78rem;font-weight:600;color:var(--connect);">Both ›</div>
       </div>
-      <div style="padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-size:0.88rem;font-weight:600;color:var(--ink);">Notifications</div>
-          <div style="font-size:0.72rem;color:var(--muted);">New finds and messages</div>
-        </div>
-        <div class="toggle" style="background:var(--connect);"></div>
-      </div>
     </div>
 
-    <!-- Share your link -->
+    <!-- Candid link -->
     <div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;padding:1.5rem;margin-bottom:1.25rem;text-align:center;">
       <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;">Your Candid link</div>
-      <div style="font-family:Fraunces,serif;font-size:1rem;color:var(--ink);margin-bottom:1rem;">candid.so/rachelhor</div>
-      <button onclick="copyYourLink(this)" style="background:var(--ink);color:var(--white);border:none;border-radius:100px;padding:0.65rem 1.5rem;font-family:DM Sans,sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;">Copy link</button>
+      <div style="font-family:Fraunces,serif;font-size:1rem;color:var(--vibe);margin-bottom:1rem;" id="you-link">—</div>
+      <button onclick="copyYourLink(this)" style="background:var(--warm);color:var(--white);border:1px solid var(--line);border-radius:100px;padding:0.65rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;">Copy link</button>
     </div>
 
-    <div style="padding-bottom:6rem;"></div>
   </div>
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('finds',this)"><div class="nav-icon">✦</div><div class="nav-label">Finds</div></div>
@@ -2263,14 +2297,7 @@ function switchTab(tab, btn) {
     // sync You tab data
   } else if(tab === 'you') {
     showScreen('screen-you');
-    const name = document.getElementById('yc-name').textContent;
-    const role = document.getElementById('yc-role').textContent;
-    document.getElementById('you-name').textContent = name;
-    document.getElementById('you-role').textContent = role;
-    const found = document.getElementById('input-found') ? document.getElementById('input-found').value || role : role;
-    const open = document.getElementById('input-open') ? document.getElementById('input-open').value || 'All of it' : 'All of it';
-    document.getElementById('you-found').textContent = found || role;
-    document.getElementById('you-open').textContent = open;
+    loadYouTab();
   }
 }
 
@@ -2279,6 +2306,108 @@ function checkStep4() {
   const email = document.getElementById('input-email').value.trim();
   const pass = document.getElementById('input-password').value.trim();
   document.getElementById('step4-next').disabled = !(email && pass.length >= 8);
+}
+
+// ── YOU TAB LOAD ──
+async function loadYouTab() {
+  if (!_session) return;
+  const profile = await supaGetProfile(_session.access_token);
+  if (!profile) return;
+
+  document.getElementById('you-name').textContent = profile.name || '—';
+  document.getElementById('you-role').textContent = profile.tagline || '—';
+  document.getElementById('you-link').textContent = profile.candid_link || '—';
+  document.getElementById('edit-tagline').value = profile.tagline || '';
+  document.getElementById('edit-focus').value = profile.current_focus || '';
+  document.getElementById('edit-achievement').value = profile.achievement || '';
+  document.getElementById('edit-open-to').value = profile.open_to || '';
+
+  // Photo
+  if (profile.photo_url) {
+    const el = document.getElementById('profile-photo-display');
+    el.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  }
+
+  // Anon toggle
+  const toggle = document.getElementById('you-anon-toggle');
+  if (toggle) toggle.classList.toggle('off', !profile.anonymous_mode);
+
+  previewTrustSignal();
+}
+
+function previewTrustSignal() {
+  const tagline = document.getElementById('edit-tagline')?.value || '';
+  const achievement = document.getElementById('edit-achievement')?.value || '';
+  const open_to = document.getElementById('edit-open-to')?.value || '';
+  const anon = document.getElementById('you-anon-toggle')?.classList.contains('off');
+  const profile = { tagline, achievement, open_to, anonymous_mode: anon, vibe_tags: [] };
+  const { legibilityLit, suspensionLit, resonanceLit } = calcTrustSignal(profile);
+
+  const lEl = document.getElementById('ts-you-legibility');
+  const sEl = document.getElementById('ts-you-suspension');
+  const rEl = document.getElementById('ts-you-resonance');
+  if (lEl) { lEl.className = 'ts-bar' + (legibilityLit ? ' lit-legibility' : ''); }
+  if (sEl) { sEl.className = 'ts-bar' + (suspensionLit ? ' lit-suspension' : ''); }
+  if (rEl) { rEl.className = 'ts-bar' + (resonanceLit ? ' lit-resonance' : ''); }
+
+  const hints = [];
+  if (!legibilityLit) hints.push('Add a specific tagline and achievement to improve Legibility');
+  if (!suspensionLit) hints.push('Turn off anonymous mode and add vibes to improve Suspension');
+  const hintEl = document.getElementById('ts-you-hint');
+  if (hintEl) hintEl.textContent = hints[0] || 'Your Trust Signal is strong.';
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('save-profile-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const token = _session?.access_token;
+  const userId = JSON.parse(atob(token.split('.')[1])).sub;
+  const tagline = document.getElementById('edit-tagline').value.trim();
+  const focus = document.getElementById('edit-focus').value.trim();
+  const achievement = document.getElementById('edit-achievement').value.trim();
+  const open_to = document.getElementById('edit-open-to').value.trim();
+
+  await supaUpsertProfile({ id: userId, tagline, current_focus: focus, achievement, open_to }, token);
+
+  document.getElementById('you-role').textContent = tagline;
+  document.getElementById('yc-role').textContent = tagline;
+  document.getElementById('yc-name') && (document.getElementById('you-name').textContent = document.getElementById('yc-name').textContent);
+
+  previewTrustSignal();
+  btn.textContent = 'Saved ✓'; btn.disabled = false;
+  setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+}
+
+async function handlePhotoUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const token = _session?.access_token;
+  const userId = JSON.parse(atob(token.split('.')[1])).sub;
+
+  // Convert to base64 data URL for display
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result;
+    const el = document.getElementById('profile-photo-display');
+    el.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+
+    // Upload to Supabase Storage
+    const ext = file.name.split('.').pop();
+    const path = `${userId}/avatar.${ext}`;
+    const uploadRes = await fetch(`${SUPA_URL}/storage/v1/object/avatars/${path}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': file.type, 'x-upsert': 'true' },
+      body: file
+    });
+
+    if (uploadRes.ok) {
+      const photo_url = `${SUPA_URL}/storage/v1/object/public/avatars/${path}`;
+      await supaUpsertProfile({ id: userId, photo_url }, token);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ── YOU TAB ANON ──
