@@ -12,8 +12,8 @@
   --bg:       #0a0a0a;
   --white:    #f0f0f0;
   --ink:      #000000;
-  --body:     #a0a0a0;
-  --muted:    #555555;
+  --body:     #c8c8c8;
+  --muted:    #888888;
   --line:     #1e1e1e;
   --warm:     #111111;
   --sand:     #181818;
@@ -203,7 +203,7 @@ html, body {
 
 .onboard-sub {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: #aaaaaa;
   margin-top: 0.5rem;
   line-height: 1.6;
 }
@@ -275,7 +275,7 @@ html, body {
 .field-label {
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--muted);
+  color: #aaaaaa;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -298,7 +298,7 @@ html, body {
 
 .field-hint {
   font-size: 0.72rem;
-  color: var(--muted);
+  color: #888888;
   font-style: italic;
 }
 
@@ -1788,11 +1788,32 @@ function skipToApp() {
   showScreen('screen-signin');
 }
 
-// ── SCREENS ──
+// ── BROWSER BACK BUTTON ──
+const screenHistory = [];
+
 function showScreen(id) {
+  const current = document.querySelector('.screen.active')?.id;
+  if (current && current !== id) screenHistory.push(current);
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  history.pushState({ screen: id }, '', '');
 }
+
+window.addEventListener('popstate', () => {
+  const prev = screenHistory.pop();
+  if (prev) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(prev).classList.add('active');
+  } else {
+    const active = document.querySelector('.screen.active')?.id;
+    if (active === 'app' || active === 'screen-you' || active === 'screen-messages') {
+      // stay in app
+    } else {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('splash').classList.add('active');
+    }
+  }
+});
 
 // ── ONBOARDING ──
 function selectMode(el, mode) {
