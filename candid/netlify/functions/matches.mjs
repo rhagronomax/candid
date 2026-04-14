@@ -1,149 +1,63 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const supabase = createClient(
-  Netlify.env.get("SUPABASE_URL"),
-  Netlify.env.get("SUPABASE_SERVICE_KEY")
-);
-
 function getUserId(req) {
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.replace("Bearer ", "");
-  if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.sub;
-  } catch {
-    return null;
-  }
-}
-
-async function generateMatchReason(userProfile, candidateProfile) {
-  const prompt = `You are Candid's matching engine. Given two profiles, write a single short sentence (max 20 words) explaining why they are a match. Be specific, human, and insightful — not generic.
-
-Person A:
-- Name: ${userProfile.name}
-- Tagline: ${userProfile.tagline}
-- Achievement: ${userProfile.achievement}
-- Open to: ${userProfile.open_to}
-- Vibes: ${(userProfile.vibe_tags || []).join(", ")}
-
-Person B:
-- Name: ${candidateProfile.name}
-- Tagline: ${candidateProfile.tagline}
-- Achievement: ${candidateProfile.achievement}
-- Open to: ${candidateProfile.open_to}
-- Vibes: ${(candidateProfile.vibe_tags || []).join(", ")}
-
-Also classify this match as one of: chemistry, connection, or vibe.
-- chemistry = deep intellectual or professional alignment
-- connection = complementary goals or shared context
-- vibe = personality and energy match
-
-Respond ONLY as JSON: {"reason": "...", "type": "chemistry|connection|vibe"}`;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": Netlify.env.get("ANTHROPIC_API_KEY"),
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 200,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-
-  const data = await res.json();
-  const text = data.content?.[0]?.text || '{"reason":"Shared direction and complementary perspectives.","type":"connection"}';
-  try {
-    return JSON.parse(text.replace(/```json|```/g, "").trim());
-  } catch {
-    return { reason: "Shared direction and complementary perspectives.", type: "connection" };
-  }
+    const token = (req.headers.get("authorization") || "").replace("Bearer ", "");
+    return JSON.parse(atob(token.split(".")[1])).sub;
+  } catch { return null; }
 }
 
 export default async (req) => {
   const userId = getUserId(req);
   if (!userId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
 
-  if (req.method === "GET") {
-    // Return existing matches with profile data
-    const { data, error } = await supabase
-      .from("matches")
-      .select(`
-        *,
-        matched_profile:profiles!matches_matched_user_id_fkey(
-          id, name, tagline, achievement, open_to, vibe_tags, anonymous_mode
-        )
-      `)
-      .eq("user_id", userId)
-      .neq("status", "dismissed")
-      .order("created_at", { ascending: false });
+  const SURL = Netlify.env.get("SUPABASE_URL");
+  const KEY = Netlify.env.get("SUPABASE_SERVICE_KEY");
+  const ANTHROPIC = Netlify.env.get("ANTHROPIC_API_KEY");
+  const h = { "Content-Type": "application/json", "apikey": KEY, "Authorization": `Bearer ${KEY}`, "Prefer": "return=representation" };
 
-    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400 });
-    return new Response(JSON.stringify(data), { status: 200 });
+  if (req.method === "GET") {
+    const res = await fetch(`${SURL}/rest/v1/matches?user_id=eq.${userId}&status=neq.dismissed&select=*,matched_profile:profiles!matches_matched_user_id_fkey(id,name,tagline,achievement,open_to,vibe_tags,anonymous_mode)&order=created_at.desc`, { headers: h });
+    return new Response(await res.text(), { status: 200, headers: { "Content-Type": "application/json" } });
   }
 
   if (req.method === "POST") {
-    // Generate new matches for this user
-    const { data: myProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    const profileRes = await fetch(`${SURL}/rest/v1/profiles?id=eq.${userId}&select=*`, { headers: h });
+    const profiles = await profileRes.json();
+    const myProfile = profiles[0];
+    if (!myProfile) return new Response(JSON.stringify({ error: "Profile not found" }), { status: 404 });
 
-    if (profileError || !myProfile) {
-      return new Response(JSON.stringify({ error: "Profile not found" }), { status: 404 });
-    }
+    const existingRes = await fetch(`${SURL}/rest/v1/matches?user_id=eq.${userId}&select=matched_user_id`, { headers: h });
+    const existing = await existingRes.json();
+    const excludeIds = [userId, ...existing.map(m => m.matched_user_id)];
 
-    // Get candidates (not already matched, not self)
-    const { data: existingMatches } = await supabase
-      .from("matches")
-      .select("matched_user_id")
-      .eq("user_id", userId);
-
-    const alreadyMatched = (existingMatches || []).map((m) => m.matched_user_id);
-    alreadyMatched.push(userId);
-
-    const { data: candidates, error: candidatesError } = await supabase
-      .from("profiles")
-      .select("*")
-      .not("id", "in", `(${alreadyMatched.join(",")})`)
-      .limit(10);
-
-    if (candidatesError || !candidates?.length) {
-      return new Response(JSON.stringify({ matches: [], message: "No new candidates" }), { status: 200 });
-    }
+    const candidatesRes = await fetch(`${SURL}/rest/v1/profiles?id=not.in.(${excludeIds.join(",")})&select=*&limit=5`, { headers: h });
+    const candidates = await candidatesRes.json();
+    if (!candidates?.length) return new Response(JSON.stringify([]), { status: 200 });
 
     const newMatches = [];
-    for (const candidate of candidates.slice(0, 5)) {
-      const { reason, type } = await generateMatchReason(myProfile, candidate);
-      const { data: match } = await supabase
-        .from("matches")
-        .insert({
-          user_id: userId,
-          matched_user_id: candidate.id,
-          match_type: type,
-          match_reason: reason,
-        })
-        .select()
-        .single();
-
-      if (match) newMatches.push({ ...match, matched_profile: candidate });
+    for (const candidate of candidates) {
+      let reason = "Shared direction and complementary perspectives.", type = "connection";
+      try {
+        const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01" },
+          body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 150, messages: [{ role: "user", content: `Match reason (max 20 words) + type (chemistry/connection/vibe) for:\nA: ${myProfile.name}, ${myProfile.tagline}\nB: ${candidate.name}, ${candidate.tagline}\nJSON only: {"reason":"...","type":"..."}` }] })
+        });
+        const aiData = await aiRes.json();
+        const parsed = JSON.parse(aiData.content[0].text.replace(/```json|```/g,"").trim());
+        reason = parsed.reason; type = parsed.type;
+      } catch {}
+      const matchRes = await fetch(`${SURL}/rest/v1/matches`, { method: "POST", headers: h, body: JSON.stringify({ user_id: userId, matched_user_id: candidate.id, match_type: type, match_reason: reason }) });
+      const match = await matchRes.json();
+      if (match[0]) newMatches.push({ ...match[0], matched_profile: candidate });
     }
-
     return new Response(JSON.stringify(newMatches), { status: 200 });
   }
 
   if (req.method === "DELETE") {
-    // Dismiss a match
     const { matchId } = await req.json();
-    await supabase.from("matches").update({ status: "dismissed" }).eq("id", matchId).eq("user_id", userId);
+    await fetch(`${SURL}/rest/v1/matches?id=eq.${matchId}&user_id=eq.${userId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: "dismissed" }) });
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }
-
   return new Response("Method not allowed", { status: 405 });
 };
 
