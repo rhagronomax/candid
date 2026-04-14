@@ -1738,12 +1738,15 @@ async function callClaude(systemPrompt, userMessage, maxTokens=400) {
 })();
 
 function populateUI(profile) {
-  document.getElementById('yc-name').textContent = profile.name;
-  document.getElementById('yc-role').textContent = profile.tagline || '';
-  document.getElementById('you-name').textContent = profile.name;
-  document.getElementById('you-role').textContent = profile.tagline || '';
-  document.getElementById('you-found').textContent = profile.tagline || '';
-  document.getElementById('you-open').textContent = profile.open_to || '';
+  if (!profile) return;
+  const name = profile.name || '—';
+  const tagline = profile.tagline || '—';
+  document.getElementById('yc-name').textContent = name;
+  document.getElementById('yc-role').textContent = tagline;
+  const youName = document.getElementById('you-name');
+  const youRole = document.getElementById('you-role');
+  if (youName) youName.textContent = name;
+  if (youRole) youRole.textContent = tagline;
 }
 
 async function doSignIn() {
