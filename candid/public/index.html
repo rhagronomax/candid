@@ -1796,22 +1796,14 @@ function showScreen(id) {
   if (current && current !== id) screenHistory.push(current);
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  history.pushState({ screen: id }, '', '');
+  try { history.pushState({ screen: id }, '', ''); } catch(e) {}
 }
 
-window.addEventListener('popstate', () => {
+window.addEventListener('popstate', (e) => {
   const prev = screenHistory.pop();
   if (prev) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(prev).classList.add('active');
-  } else {
-    const active = document.querySelector('.screen.active')?.id;
-    if (active === 'app' || active === 'screen-you' || active === 'screen-messages') {
-      // stay in app
-    } else {
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      document.getElementById('splash').classList.add('active');
-    }
+    try { document.getElementById(prev).classList.add('active'); } catch(e) {}
   }
 });
 
