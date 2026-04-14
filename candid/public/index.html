@@ -581,6 +581,82 @@ html, body {
 
 .match-connect-btn:hover { box-shadow: 0 0 20px rgba(0,255,178,0.5); transform: translateY(-1px); }
 
+/* ══════════════ TRUST SIGNAL ══════════════ */
+.trust-signal {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.ts-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.ts-bars {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.ts-bar {
+  width: 20px;
+  height: 3px;
+  border-radius: 100px;
+  background: var(--line);
+  transition: background 0.3s;
+}
+
+.ts-bar.lit-legibility { background: var(--vibe); }
+.ts-bar.lit-suspension { background: var(--connect); }
+.ts-bar.lit-resonance { background: var(--chem); }
+
+.ts-dots {
+  display: flex;
+  gap: 6px;
+  margin-left: 0.5rem;
+}
+
+.ts-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.ts-dot-label {
+  font-size: 0.55rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+/* Professional persona */
+.pro-layer {
+  background: rgba(0,204,255,0.04);
+  border: 1px solid rgba(0,204,255,0.12);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--body);
+  line-height: 1.5;
+}
+
+.pro-layer-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--connect);
+  margin-bottom: 0.3rem;
+}
+
 /* Anonymous toggle */
 .anon-notice {
   margin: 0 1.5rem 1rem;
@@ -1090,6 +1166,11 @@ html, body {
         <div class="field-label">What do you want to be found for?</div>
         <input class="field-input" type="text" placeholder="e.g. AI governance expert, fintech advisor, climate researcher" id="input-found" oninput="checkStep2()">
         <div class="field-hint">One line. The truest version of what you do or who you are.</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Current focus <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(professional)</span></div>
+        <input class="field-input" type="text" placeholder="e.g. Building AI trust frameworks for insurers" id="input-focus">
+        <div class="field-hint">Not your job title. What you're actually doing right now.</div>
       </div>
       <div class="field">
         <div class="field-label">One thing you've built, solved, or changed</div>
@@ -1742,8 +1823,10 @@ async function launchApp() {
 
     // 3. Save profile directly to Supabase
     const userId = JSON.parse(atob(signinData.access_token.split('.')[1])).sub;
+    const focus = document.getElementById('input-focus')?.value.trim() || '';
     await supaUpsertProfile({
       id: userId, name, tagline: found, achievement: built, open_to: open,
+      current_focus: focus,
       match_mode: selectedMode || 'both', vibe_tags: selectedVibes, anonymous_mode: true,
       candid_link: 'candid.so/' + name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')
     }, signinData.access_token);
@@ -1760,6 +1843,41 @@ async function launchApp() {
     btn.disabled = false; btn.textContent = 'Find my matches →';
     alert('Something went wrong. Please try again.');
   }
+}
+
+// ── TRUST SIGNAL ──
+function calcTrustSignal(profile) {
+  // Legibility: specific, coherent profile
+  let legibility = 0;
+  if (profile.tagline && profile.tagline.length > 15) legibility++;
+  if (profile.achievement && profile.achievement.length > 20) legibility++;
+  if (profile.open_to && profile.open_to.length > 5) legibility++;
+  const legibilityLit = legibility >= 2;
+
+  // Suspension: willingness to be found
+  let suspension = 0;
+  if (!profile.anonymous_mode) suspension++;
+  if (profile.vibe_tags && profile.vibe_tags.length >= 2) suspension++;
+  if (profile.open_to && !['anything','all','everything'].includes(profile.open_to.toLowerCase().trim())) suspension++;
+  const suspensionLit = suspension >= 2;
+
+  // Resonance: placeholder until behavioral data exists
+  const resonanceLit = false;
+
+  return { legibilityLit, suspensionLit, resonanceLit };
+}
+
+function renderTrustSignal(profile) {
+  const { legibilityLit, suspensionLit, resonanceLit } = calcTrustSignal(profile);
+  return `<div class="trust-signal">
+    <span class="ts-label">Trust signal</span>
+    <div class="ts-bars">
+      <div class="ts-bar ${legibilityLit ? 'lit-legibility' : ''}" title="Legibility"></div>
+      <div class="ts-bar ${suspensionLit ? 'lit-suspension' : ''}" title="Suspension"></div>
+      <div class="ts-bar ${resonanceLit ? 'lit-resonance' : ''}" title="Resonance"></div>
+    </div>
+    <span style="font-size:0.6rem;color:var(--muted);margin-left:0.25rem;">${[legibilityLit?'L':'',suspensionLit?'S':'',resonanceLit?'R':''].filter(Boolean).join('·') || '—'}</span>
+  </div>`;
 }
 
 // ── LOAD REAL MATCHES from API ──
@@ -1784,6 +1902,8 @@ async function loadRealMatches() {
       const why = m.match_reason || '';
       const name = p.anonymous_mode ? 'Anonymous' : (p.name || 'Someone interesting');
       const role = p.tagline || '';
+      const focus = p.current_focus ? `<div class="pro-layer"><div class="pro-layer-label">Currently</div>${p.current_focus}</div>` : '';
+      const trustHtml = renderTrustSignal(p);
 
       return `<div class="match-card slide-up" data-level="${lvl}" style="animation-delay:${i*0.1}s" onclick="openMatch('${name.replace(/'/g,"\\'")}','${role.replace(/'/g,"\\'")}','${lvl}','${emoji}','${why.replace(/'/g,"\\'")}','${(p.vibe_tags||[]).join(", ")}',${JSON.stringify(tags)},'${(p.achievement||'').replace(/'/g,"\\'")}','${(p.open_to||'').replace(/'/g,"\\'")}')">
         <div class="match-card-top">
@@ -1794,9 +1914,11 @@ async function loadRealMatches() {
               <div class="match-level ${classMap[m.match_type] || 'ml-vibe'}">${badgeMap[m.match_type] || '○ Vibe'}</div>
             </div>
             <div class="match-role">${role}</div>
+            ${focus}
             <div class="match-why">"${why}"</div>
           </div>
         </div>
+        ${trustHtml}
         <div class="match-card-bottom">
           <div class="match-tags">${tagsHtml}</div>
           <button class="match-connect-btn" onclick="event.stopPropagation();openMsg('${name.split(' ')[0]}')">Connect</button>
