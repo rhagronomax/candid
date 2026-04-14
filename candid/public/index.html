@@ -1790,6 +1790,7 @@ async function launchApp() {
 
   try {
     const signupData = await supaSignUp(email, password);
+    alert('Signup response keys: ' + Object.keys(signupData).join(', '));
     if (signupData.error || signupData.error_description) {
       btn.disabled = false; btn.textContent = 'Find my matches →';
       alert(signupData.error_description || signupData.error); return;
