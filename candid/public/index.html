@@ -1891,7 +1891,7 @@ async function launchApp() {
 
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Find my matches →';
-    alert('Something went wrong. Please try again.');
+    alert('Error: ' + e.message);
   }
 }
 
