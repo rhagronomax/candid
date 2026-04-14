@@ -1543,14 +1543,52 @@ let implicitSignals = { opens:{}, messages:{}, passes:{} };
 let intentDrift = { professional:0, personal:0, feeling:0 };
 
 // ── ANTHROPIC API ──
-// ── AUTH STATE ──
+// ── SUPABASE DIRECT CLIENT ──
+const SUPA_URL = 'https://sttkixdqnetxkritldzh.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0dGtpeGRxbmV0eGtyaXRsZHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzMwMjksImV4cCI6MjA5MTcwOTAyOX0.mP-iiB9ji0J1mSbqUMYBnZOOPU9ZPotbV7W3uP9oiB0';
+
 let _session = null;
 
 function authHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ' + (_session?.access_token || '')
-  };
+  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') };
+}
+
+async function supaSignUp(email, password) {
+  const res = await fetch(`${SUPA_URL}/auth/v1/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+    body: JSON.stringify({ email, password })
+  });
+  return res.json();
+}
+
+async function supaSignIn(email, password) {
+  const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+    body: JSON.stringify({ email, password })
+  });
+  return res.json();
+}
+
+async function supaUpsertProfile(profile, token) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(profile)
+  });
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function supaGetProfile(token) {
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  const userId = payload.sub;
+  const res = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${userId}&select=*`, {
+    headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}` }
+  });
+  const data = await res.json();
+  return data[0] || null;
 }
 
 async function callClaude(systemPrompt, userMessage, maxTokens=400) {
@@ -1562,12 +1600,10 @@ async function callClaude(systemPrompt, userMessage, maxTokens=400) {
     });
     const data = await res.json();
     return data.text || '';
-  } catch(e) {
-    return '';
-  }
+  } catch(e) { return ''; }
 }
 
-// ── AUTO LOGIN on page load ──
+// ── AUTO LOGIN ──
 (async function initAuth() {
   const saved = localStorage.getItem('candid_session');
   if (!saved) return;
@@ -1576,22 +1612,24 @@ async function callClaude(systemPrompt, userMessage, maxTokens=400) {
     const payload = JSON.parse(atob(session.access_token.split('.')[1]));
     if (payload.exp * 1000 < Date.now()) { localStorage.removeItem('candid_session'); return; }
     _session = session;
-    const res = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + session.access_token } });
-    if (!res.ok) return;
-    const profile = await res.json();
+    const profile = await supaGetProfile(session.access_token);
     if (profile && profile.name) {
-      document.getElementById('yc-name').textContent = profile.name;
-      document.getElementById('yc-role').textContent = profile.tagline || '';
-      document.getElementById('you-name').textContent = profile.name;
-      document.getElementById('you-role').textContent = profile.tagline || '';
-      document.getElementById('you-found').textContent = profile.tagline || '';
-      document.getElementById('you-open').textContent = profile.open_to || '';
+      populateUI(profile);
       showScreen('app');
       checkFilterVisibility();
       loadRealMatches();
     }
   } catch(e) { localStorage.removeItem('candid_session'); }
 })();
+
+function populateUI(profile) {
+  document.getElementById('yc-name').textContent = profile.name;
+  document.getElementById('yc-role').textContent = profile.tagline || '';
+  document.getElementById('you-name').textContent = profile.name;
+  document.getElementById('you-role').textContent = profile.tagline || '';
+  document.getElementById('you-found').textContent = profile.tagline || '';
+  document.getElementById('you-open').textContent = profile.open_to || '';
+}
 
 async function doSignIn() {
   const email = document.getElementById('si-email').value.trim();
@@ -1601,25 +1639,15 @@ async function doSignIn() {
   err.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Signing in…';
   try {
-    const res = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'signin', email, password })
-    });
-    const data = await res.json();
-    if (data.error) { err.textContent = data.error; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Sign in →'; return; }
-    _session = data.session;
-    localStorage.setItem('candid_session', JSON.stringify(_session));
-    const profileRes = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + _session.access_token } });
-    const profile = await profileRes.json();
-    if (profile && profile.name) {
-      document.getElementById('yc-name').textContent = profile.name;
-      document.getElementById('yc-role').textContent = profile.tagline || '';
-      document.getElementById('you-name').textContent = profile.name;
-      document.getElementById('you-role').textContent = profile.tagline || '';
-      document.getElementById('you-found').textContent = profile.tagline || '';
-      document.getElementById('you-open').textContent = profile.open_to || '';
+    const data = await supaSignIn(email, password);
+    if (data.error || data.error_description) {
+      err.textContent = data.error_description || data.error;
+      err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Sign in →'; return;
     }
+    _session = { access_token: data.access_token, refresh_token: data.refresh_token };
+    localStorage.setItem('candid_session', JSON.stringify(_session));
+    const profile = await supaGetProfile(data.access_token);
+    if (profile) populateUI(profile);
     showScreen('app');
     checkFilterVisibility();
     loadRealMatches();
@@ -1692,59 +1720,44 @@ async function launchApp() {
   const password = document.getElementById('input-password').value;
 
   const btn = document.getElementById('step4-next');
-  btn.disabled = true;
-  btn.textContent = 'Creating your account…';
+  btn.disabled = true; btn.textContent = 'Creating your account…';
 
   try {
-    // 1. Sign up
-    const signupRes = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'signup', email, password })
-    });
-    const signupData = await signupRes.json();
-    if (signupData.error) { btn.disabled = false; btn.textContent = 'Find my matches →'; alert(signupData.error); return; }
+    // 1. Sign up directly with Supabase
+    const signupData = await supaSignUp(email, password);
+    if (signupData.error || signupData.error_description) {
+      btn.disabled = false; btn.textContent = 'Find my matches →';
+      alert(signupData.error_description || signupData.error); return;
+    }
 
     // 2. Sign in to get session
-    const signinRes = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'signin', email, password })
-    });
-    const signinData = await signinRes.json();
-    if (signinData.error) { btn.disabled = false; btn.textContent = 'Find my matches →'; alert(signinData.error); return; }
+    const signinData = await supaSignIn(email, password);
+    if (signinData.error || signinData.error_description) {
+      btn.disabled = false; btn.textContent = 'Find my matches →';
+      alert(signinData.error_description || signinData.error); return;
+    }
 
-    _session = signinData.session;
+    _session = { access_token: signinData.access_token, refresh_token: signinData.refresh_token };
     localStorage.setItem('candid_session', JSON.stringify(_session));
 
-    // 3. Save profile
-    await fetch('/api/profile', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ name, tagline: found, achievement: built, open_to: open, match_mode: selectedMode || 'both', vibe_tags: selectedVibes, anonymous_mode: true })
-    });
+    // 3. Save profile directly to Supabase
+    const userId = JSON.parse(atob(signinData.access_token.split('.')[1])).sub;
+    await supaUpsertProfile({
+      id: userId, name, tagline: found, achievement: built, open_to: open,
+      match_mode: selectedMode || 'both', vibe_tags: selectedVibes, anonymous_mode: true,
+      candid_link: 'candid.so/' + name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')
+    }, signinData.access_token);
 
     // 4. Update UI
-    document.getElementById('yc-name').textContent = name;
-    document.getElementById('yc-role').textContent = found;
-    document.getElementById('you-name').textContent = name;
-    document.getElementById('you-role').textContent = found;
-    document.getElementById('you-found').textContent = found;
-    document.getElementById('you-open').textContent = open;
+    populateUI({ name, tagline: found, open_to: open });
     showScreen('app');
     checkFilterVisibility();
 
-    // 5. Generate real matches in background
+    // 5. Generate matches via function
     fetch('/api/matches', { method: 'POST', headers: authHeaders() }).then(() => loadRealMatches());
 
-    // 6. Silent consistency check
-    if(built && found) {
-      const consistent = await checkProfileConsistency(name, found, built, open);
-      if(!consistent) console.log('Profile flagged for review');
-    }
   } catch(e) {
-    btn.disabled = false;
-    btn.textContent = 'Find my matches →';
+    btn.disabled = false; btn.textContent = 'Find my matches →';
     alert('Something went wrong. Please try again.');
   }
 }
