@@ -1754,7 +1754,9 @@ async function doSignIn() {
   err.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Signing in…';
   try {
+    console.log('Attempting signin for:', email);
     const data = await supaSignIn(email, password);
+    console.log('Signin response:', JSON.stringify(data));
     if (data.error || data.error_description) {
       err.textContent = data.error_description || data.error;
       err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Sign in →'; return;
