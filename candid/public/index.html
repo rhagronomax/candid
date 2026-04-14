@@ -1679,12 +1679,15 @@ async function supaSignIn(email, password) {
 }
 
 async function supaGetProfile(token) {
-  const uid = JSON.parse(atob(token.split('.')[1])).sub;
-  const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}&select=*`, {
-    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
-  });
-  const d = await r.json();
-  return Array.isArray(d) ? d[0]||null : null;
+  if (!token) return null;
+  try {
+    const uid = JSON.parse(atob(token.split('.')[1])).sub;
+    const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}&select=*`, {
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
+    });
+    const d = await r.json();
+    return Array.isArray(d) ? d[0]||null : null;
+  } catch(e) { return null; }
 }
 
 async function supaUpsertProfile(profile, token) {
@@ -1756,9 +1759,15 @@ async function doSignIn() {
       if (errEl) { errEl.textContent = data.error_description || data.error; errEl.style.display = 'block'; }
       btn.disabled = false; btn.textContent = 'Sign in →'; return;
     }
-    _session = { access_token: data.access_token, refresh_token: data.refresh_token };
+    const token = data.access_token || data.session?.access_token;
+    const refresh = data.refresh_token || data.session?.refresh_token;
+    if (!token) {
+      if (errEl) { errEl.textContent = 'Sign in failed — please try again'; errEl.style.display = 'block'; }
+      btn.disabled = false; btn.textContent = 'Sign in →'; return;
+    }
+    _session = { access_token: token, refresh_token: refresh };
     localStorage.setItem('candid_session', JSON.stringify(_session));
-    const profile = await supaGetProfile(data.access_token);
+    const profile = await supaGetProfile(token);
     populateUI(profile);
     showScreen('app');
     checkFilterVisibility();
@@ -1790,25 +1799,28 @@ async function launchApp() {
 
   try {
     const signupData = await supaSignUp(email, password);
-    alert('Signup response keys: ' + Object.keys(signupData).join(', '));
     if (signupData.error || signupData.error_description) {
       btn.disabled = false; btn.textContent = 'Find my matches →';
       alert(signupData.error_description || signupData.error); return;
     }
 
-    // Use session from signup if available, otherwise signin separately
-    let accessToken, refreshToken;
-    if (signupData.access_token) {
-      accessToken = signupData.access_token;
-      refreshToken = signupData.refresh_token;
-    } else {
+    // Get token — from signup response or separate signin
+    let accessToken = signupData.access_token || signupData.session?.access_token;
+    let refreshToken = signupData.refresh_token || signupData.session?.refresh_token;
+
+    if (!accessToken) {
       const signinData = await supaSignIn(email, password);
       if (signinData.error || signinData.error_description) {
         btn.disabled = false; btn.textContent = 'Find my matches →';
         alert(signinData.error_description || signinData.error); return;
       }
-      accessToken = signinData.access_token;
-      refreshToken = signinData.refresh_token;
+      accessToken = signinData.access_token || signinData.session?.access_token;
+      refreshToken = signinData.refresh_token || signinData.session?.refresh_token;
+    }
+
+    if (!accessToken) {
+      btn.disabled = false; btn.textContent = 'Find my matches →';
+      alert('Could not get session. Please try signing in.'); return;
     }
 
     _session = { access_token: accessToken, refresh_token: refreshToken };
