@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Candid — Be found for who you actually are</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --border: #e8e4df;
+    --text: #1a1714;
+    --muted: #8a8278;
+    --accent: #2d4a3e;
+    --accent-light: #e8f0ec;
+    --chemistry: #c4622d;
+    --connection: #2d4a3e;
+    --vibe: #6b5b8e;
+    --danger: #c4622d;
+    --radius: 16px;
+    --font-serif: 'DM Serif Display', serif;
+    --font-sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── LANDING ── */
+  #screen-landing {
+    background: var(--bg);
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #screen-landing::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(45,74,62,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .landing-avatars {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 48px;
+  }
+
+  .avatar-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    animation: float 4s ease-in-out infinite;
+  }
+
+  .avatar-card:nth-child(2) { animation-delay: 1.3s; }
+  .avatar-card:nth-child(3) { animation-delay: 2.6s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  .avatar-card .emoji { font-size: 28px; }
+  .avatar-card .aname { font-size: 11px; font-weight: 600; color: var(--text); }
+  .avatar-card .arole { font-size: 10px; color: var(--muted); }
+  .avatar-card .abadge {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .abadge.chemistry { background: rgba(196,98,45,0.12); color: var(--chemistry); }
+  .abadge.connection { background: rgba(45,74,62,0.12); color: var(--connection); }
+  .abadge.vibe { background: rgba(107,91,142,0.12); color: var(--vibe); }
+
+  .wordmark {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+
+  .wordmark span { color: var(--accent); }
+
+  h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(32px, 8vw, 52px);
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 20px;
+    max-width: 480px;
+  }
+
+  h1 em { font-style: italic; color: var(--accent); }
+
+  .landing-sub {
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 36px;
+    max-width: 320px;
+    line-height: 1.7;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    padding: 14px 32px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-block;
+  }
+
+  .btn-primary:hover { background: #1e3329; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(45,74,62,0.3); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 10px 16px;
+    border-radius: 100px;
+    transition: color 0.2s;
+  }
+  .btn-ghost:hover { color: var(--text); }
+
+  .landing-tagline {
+    margin-top: 32px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ── ONBOARDING ── */
+  #screen-onboarding {
+    background: var(--bg);
+    padding: 0;
+  }
+
+  .onboard-wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 60px 24px 40px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .onboard-step { display: none; flex-direction: column; flex: 1; }
+  .onboard-step.active { display: flex; }
+
+  .step-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .step-title {
+    font-family: var(--font-serif);
+    font-size: clamp(28px, 6vw, 40px);
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    margin-bottom: 32px;
+  }
+
+  .step-title em { font-style: italic; color: var(--accent); }
+
+  .mode-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .mode-card {
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--surface);
+  }
+
+  .mode-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .mode-card.selected { border-color: var(--accent); background: var(--accent-light); }
+
+  .mode-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+
+  .mode-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .mode-card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  .field-group { margin-bottom: 20px; }
+  .field-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+
+  input[type="text"], input[type="email"], input[type="password"], textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color 0.2s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .vibe-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .vibe-tag {
+    padding: 8px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface);
+    color: var(--text);
+    user-select: none;
+  }
+
+  .vibe-tag:hover { border-color: var(--accent); color: var(--accent); }
+  .vibe-tag.selected { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .vibe-hint { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+  .step-footer { margin-top: auto; padding-top: 24px; }
+
+  .btn-continue {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    padding: 16px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-continue:hover { background: #1e3329; }
+  .btn-continue:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .already-account {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .already-account a { color: var(--accent); text-decoration: none; font-weight: 600; cursor: pointer; }
+
+  /* ── APP SHELL ── */
+  #screen-app {
+    background: var(--bg);
+    padding-bottom: 80px;
+  }
+
+  .app-header {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .app-wordmark {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    color: var(--text);
+  }
+
+  .notif-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    position: relative;
+    padding: 4px;
+  }
+
+  .notif-dot {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 8px; height: 8px;
+    background: var(--chemistry);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+  }
+
+  /* ── IDENTITY CARD ── */
+  .identity-card {
+    margin: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  .identity-avatar {
+    width: 52px; height: 52px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .identity-info { flex: 1; min-width: 0; }
+  .identity-name { font-weight: 700; font-size: 16px; margin-bottom: 2px; }
+  .identity-tagline { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .identity-stats {
+    display: flex;
+    gap: 16px;
+  }
+
+  .stat { text-align: center; }
+  .stat-num { font-size: 20px; font-weight: 700; line-height: 1; }
+  .stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* ── TABS ── */
+  .app-tab { display: none; }
+  .app-tab.active { display: block; }
+
+  /* ── FINDS ── */
+  .finds-header {
+    padding: 20px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .finds-title { font-family: var(--font-serif); font-size: 22px; }
+  .finds-updated { font-size: 12px; color: var(--muted); }
+
+  .anon-banner {
+    margin: 0 20px 16px;
+    background: rgba(45,74,62,0.06);
+    border: 1px solid rgba(45,74,62,0.15);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+
+  .filter-tab {
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+
+  .filter-tab.active {
+    background: var(--text);
+    color: white;
+    border-color: var(--text);
+  }
+
+  .find-card {
+    margin: 0 20px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: transform 0.2s;
+  }
+
+  .find-card:hover { transform: translateY(-1px); }
+
+  .find-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .find-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .find-info { flex: 1; min-width: 0; }
+  .find-name { font-weight: 600; font-size: 15px; }
+  .find-role { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .match-badge {
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .match-badge.chemistry { background: rgba(196,98,45,0.1); color: var(--chemistry); }
+  .match-badge.connection { background: rgba(45,74,62,0.1); color: var(--connection); }
+  .match-badge.vibe { background: rgba(107,91,142,0.1); color: var(--vibe); }
+
+  .find-reason {
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 14px;
+    line-height: 1.6;
+    padding: 12px 14px;
+    background: var(--bg);
+    border-radius: 10px;
+  }
+
+  .find-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .find-tag {
+    padding: 4px 10px;
+    background: var(--bg);
+    border-radius: 100px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .find-actions { display: flex; gap: 8px; }
+
+  .btn-connect {
+    flex: 1;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    padding: 10px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-connect:hover { background: #1e3329; }
+
+  .btn-dismiss {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 100px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-dismiss:hover { border-color: var(--muted); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 40px;
+    color: var(--muted);
+  }
+
+  .empty-state .emoji { font-size: 40px; margin-bottom: 16px; }
+  .empty-state p { font-size: 14px; line-height: 1.7; }
+
+  .loading-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    padding: 40px;
+  }
+
+  .loading-dots span {
+    width: 8px; height: 8px;
+    background: var(--muted);
+    border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+
+  /* ── MESSAGES ── */
+  .messages-header {
+    padding: 24px 20px 16px;
+  }
+
+  .messages-title { font-family: var(--font-serif); font-size: 22px; }
+
+  .conversation-list { padding: 0 20px; }
+
+  .convo-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .convo-item:hover { opacity: 0.7; }
+
+  .convo-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .convo-info { flex: 1; min-width: 0; }
+  .convo-name { font-weight: 600; font-size: 14px; }
+  .convo-preview { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .convo-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+  /* ── PROFILE TAB ── */
+  .profile-tab-wrap { padding: 20px; }
+
+  .profile-edit-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  .profile-edit-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-edit-row:last-child { border-bottom: none; }
+
+  .row-label { font-size: 13px; color: var(--muted); }
+  .row-value { font-size: 14px; font-weight: 500; color: var(--text); text-align: right; max-width: 200px; }
+  .row-value.link { color: var(--accent); font-size: 12px; }
+
+  .toggle-switch {
+    width: 44px; height: 24px;
+    background: var(--accent);
+    border-radius: 100px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle-switch.off { background: var(--border); }
+
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+
+  .toggle-switch.off::after { transform: translateX(0); }
+  .toggle-switch:not(.off)::after { transform: translateX(20px); }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 0 env(safe-area-inset-bottom, 8px);
+    z-index: 100;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+  }
+
+  .nav-icon { font-size: 20px; transition: transform 0.15s; }
+  .nav-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.03em; }
+
+  .nav-item.active .nav-label { color: var(--accent); }
+  .nav-item.active .nav-icon { transform: scale(1.15); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal-sheet {
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 8px 0 env(safe-area-inset-bottom, 20px);
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal-handle {
+    width: 40px; height: 4px;
+    background: var(--border);
+    border-radius: 100px;
+    margin: 12px auto 20px;
+  }
+
+  .modal-content { padding: 0 24px 24px; }
+
+  .modal-back {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 4px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .match-detail-header {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .match-detail-avatar {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    border: 1px solid var(--border);
+  }
+
+  .match-detail-name { font-family: var(--font-serif); font-size: 22px; margin-bottom: 4px; }
+  .match-detail-role { font-size: 13px; color: var(--muted); }
+
+  .match-detail-why {
+    background: var(--bg);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .match-detail-why-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .match-detail-why p { font-size: 14px; line-height: 1.7; }
+
+  .match-detail-section { margin-bottom: 20px; }
+  .match-detail-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .match-detail-section p { font-size: 14px; line-height: 1.6; }
+
+  .opener-box {
+    background: var(--accent-light);
+    border: 1px solid rgba(45,74,62,0.2);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .opener-box-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .opener-refresh {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    padding: 0;
+  }
+
+  .opener-text {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    margin-bottom: 12px;
+    min-height: 60px;
+  }
+
+  .message-compose {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .message-compose textarea {
+    flex: 1;
+    min-height: 80px;
+    font-size: 14px;
+    padding: 12px 14px;
+  }
+
+  .modal-actions { display: flex; flex-direction: column; gap: 8px; }
+
+  .btn-send {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    padding: 16px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-send:hover { background: #1e3329; }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .dismiss-options { display: flex; gap: 8px; }
+
+  .btn-dismiss-reason {
+    flex: 1;
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 100px;
+    padding: 10px 8px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .btn-dismiss-reason:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ── SIGNIN MODAL ── */
+  .signin-wrap {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 60px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .signin-back {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--muted);
+    margin-bottom: 32px;
+    align-self: flex-start;
+    padding: 4px;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 300;
+    white-space: nowrap;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── ERROR ── */
+  .error-msg {
+    background: rgba(196,98,45,0.1);
+    color: var(--chemistry);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .error-msg.show { display: block; }
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="screen-landing" class="screen active">
+  <div class="landing-avatars">
+    <div class="avatar-card">
+      <span class="emoji">🧑‍💼</span>
+      <span class="aname">Marcus T.</span>
+      <span class="arole">Fintech founder</span>
+      <span class="abadge vibe">Vibe</span>
+    </div>
+    <div class="avatar-card">
+      <span class="emoji">👩‍🔬</span>
+      <span class="aname">Amara K.</span>
+      <span class="arole">AI researcher</span>
+      <span class="abadge chemistry">Chemistry</span>
+    </div>
+    <div class="avatar-card">
+      <span class="emoji">🧑‍🎨</span>
+      <span class="aname">James L.</span>
+      <span class="arole">Creative director</span>
+      <span class="abadge connection">Connection</span>
+    </div>
+  </div>
+
+  <div class="wordmark">candid<span>.</span></div>
+  <h1>Be found for who you <em>actually</em> are.</h1>
+  <p class="landing-sub">Professionally. Personally. Both.</p>
+
+  <button class="btn-primary" onclick="showScreen('onboarding')">Get started — it's free</button>
+  <button class="btn-ghost" onclick="showSignIn()">Already have an account? Sign in</button>
+
+  <p class="landing-tagline">No fake job postings. No swiping on photos.<br>Just real people, found for real reasons.</p>
+</div>
+
+<!-- SIGN IN -->
+<div id="screen-signin" class="screen">
+  <div class="signin-wrap">
+    <button class="signin-back" onclick="showScreen('landing')">←</button>
+    <div class="step-label">Welcome back</div>
+    <div class="step-title">Sign <em>in</em></div>
+    <div id="signin-error" class="error-msg"></div>
+    <div class="field-group">
+      <label>Email</label>
+      <input type="email" id="signin-email" placeholder="you@example.com">
+    </div>
+    <div class="field-group">
+      <label>Password</label>
+      <input type="password" id="signin-password" placeholder="••••••••">
+    </div>
+    <button class="btn-continue" onclick="handleSignIn()">Sign in →</button>
+    <div class="already-account" style="margin-top:16px">
+      No account? <a onclick="showScreen('onboarding')">Get started</a>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="screen-onboarding" class="screen">
+  <div class="onboard-wrap">
+
+    <!-- Step 1: Mode -->
+    <div id="step-1" class="onboard-step active">
+      <div class="step-label">Step 1 of 4</div>
+      <div class="step-title">What are you here <em>for?</em></div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:24px">Pick one — you can always change this later.</p>
+      <div class="mode-cards">
+        <div class="mode-card" onclick="selectMode('professional', this)">
+          <span class="mode-icon">💼</span>
+          <div>
+            <h3>Professional</h3>
+            <p>Found for your expertise, not your CV. Real opportunities, no fake postings.</p>
+          </div>
+        </div>
+        <div class="mode-card" onclick="selectMode('personal', this)">
+          <span class="mode-icon">🌱</span>
+          <div>
+            <h3>Personal</h3>
+            <p>Found for who you actually are. Real connection, no swiping on photos.</p>
+          </div>
+        </div>
+        <div class="mode-card" onclick="selectMode('both', this)">
+          <span class="mode-icon">✦</span>
+          <div>
+            <h3>Both</h3>
+            <p>One identity. Found by the right people — professionally and personally.</p>
+          </div>
+        </div>
+      </div>
+      <div class="step-footer">
+        <button class="btn-continue" id="btn-step1" onclick="goStep(2)" disabled>Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Essentials -->
+    <div id="step-2" class="onboard-step">
+      <div class="step-label">Step 2 of 4</div>
+      <div class="step-title">Tell us the <em>essentials.</em></div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:24px">Three questions. That's all we need to find your first matches.</p>
+      <div class="field-group">
+        <label>Your name</label>
+        <input type="text" id="ob-name" placeholder="First name is fine">
+      </div>
+      <div class="field-group">
+        <label>What do you want to be found for?</label>
+        <input type="text" id="ob-tagline" placeholder="One line. The truest version of what you do or who you are.">
+      </div>
+      <div class="field-group">
+        <label>One thing you've built, solved, or changed</label>
+        <textarea id="ob-achievement" placeholder="One sentence. The thing you're most proud of. Huge signal for matching."></textarea>
+      </div>
+      <div class="field-group">
+        <label>What are you open to?</label>
+        <input type="text" id="ob-open-to" placeholder="No wrong answers. Honesty gets better matches.">
+      </div>
+      <div class="step-footer">
+        <button class="btn-continue" onclick="goStep(3)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Vibe -->
+    <div id="step-3" class="onboard-step">
+      <div class="step-label">Step 3 of 4</div>
+      <div class="step-title">Pick your <em>vibe.</em></div>
+      <p class="vibe-hint">Choose up to three. This helps the matching engine find your people.</p>
+      <div class="vibe-grid">
+        <span class="vibe-tag" onclick="toggleVibe(this)">Direct</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Curious</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Builder</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Deep thinker</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Calm</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Ambitious</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Creative</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Analytical</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Empathetic</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Unconventional</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Private</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Global</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Grounded</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Driven</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Warm</span>
+        <span class="vibe-tag" onclick="toggleVibe(this)">Restless</span>
+      </div>
+      <div class="step-footer">
+        <button class="btn-continue" onclick="goStep(4)">Almost there →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Account -->
+    <div id="step-4" class="onboard-step">
+      <div class="step-label">Step 4 of 4</div>
+      <div class="step-title">Create your <em>account.</em></div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:24px">Free forever. No credit card. Just your email to save your profile.</p>
+      <div id="signup-error" class="error-msg"></div>
+      <div class="field-group">
+        <label>Email</label>
+        <input type="email" id="ob-email" placeholder="you@example.com">
+      </div>
+      <div class="field-group">
+        <label>Create a password</label>
+        <input type="password" id="ob-password" placeholder="At least 8 characters">
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:24px">By creating an account you agree to Candid's Terms and Privacy Policy. Your data is yours — we never sell it or use it for advertising.</p>
+      <div class="step-footer">
+        <button class="btn-continue" id="btn-signup" onclick="handleSignUp()">Find my matches →</button>
+        <div class="already-account">
+          Already have an account? <a onclick="showSignIn()">Sign in</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- APP -->
+<div id="screen-app" class="screen">
+
+  <div class="app-header">
+    <div class="app-wordmark">candid.</div>
+    <button class="notif-btn">🔔<span class="notif-dot"></span></button>
+  </div>
+
+  <!-- Identity card -->
+  <div class="identity-card">
+    <div class="identity-avatar">🧑‍💼</div>
+    <div class="identity-info">
+      <div class="identity-name" id="app-name">—</div>
+      <div class="identity-tagline" id="app-tagline">—</div>
+    </div>
+    <div class="identity-stats">
+      <div class="stat">
+        <div class="stat-num" id="stat-finds">0</div>
+        <div class="stat-label">New finds</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="stat-views">0</div>
+        <div class="stat-label">Viewed you</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Finds tab -->
+  <div id="tab-finds" class="app-tab active">
+    <div class="finds-header">
+      <div class="finds-title">Your finds</div>
+      <div class="finds-updated" id="finds-updated">—</div>
+    </div>
+
+    <div class="anon-banner">
+      🔒 <strong>Anonymous mode on</strong> — They see your profile. You're not revealed until you connect.
+    </div>
+
+    <div class="filter-tabs">
+      <div class="filter-tab active" onclick="filterFinds('all', this)">All finds</div>
+      <div class="filter-tab" onclick="filterFinds('chemistry', this)">✦ Chemistry</div>
+      <div class="filter-tab" onclick="filterFinds('connection', this)">● Connection</div>
+      <div class="filter-tab" onclick="filterFinds('vibe', this)">○ Vibe</div>
+    </div>
+
+    <div id="finds-list">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <!-- Messages tab -->
+  <div id="tab-messages" class="app-tab">
+    <div class="messages-header">
+      <div class="messages-title">Messages</div>
+    </div>
+    <div class="conversation-list" id="conversation-list">
+      <div class="empty-state">
+        <div class="emoji">💬</div>
+        <p>No conversations yet.<br>Connect with a find to start a conversation.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile tab -->
+  <div id="tab-profile" class="app-tab">
+    <div class="profile-tab-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div class="finds-title">You</div>
+        <button class="btn-ghost" onclick="handleSignOut()" style="color:var(--muted);font-size:13px">Sign out</button>
+      </div>
+      <div class="profile-edit-card">
+        <div class="profile-edit-row">
+          <span class="row-label">Name</span>
+          <span class="row-value" id="profile-name">—</span>
+        </div>
+        <div class="profile-edit-row">
+          <span class="row-label">What I want to be found for</span>
+          <span class="row-value" id="profile-tagline">—</span>
+        </div>
+        <div class="profile-edit-row">
+          <span class="row-label">Open to</span>
+          <span class="row-value" id="profile-open-to">—</span>
+        </div>
+        <div class="profile-edit-row">
+          <span class="row-label">Anonymous mode</span>
+          <div class="toggle-switch" id="anon-toggle" onclick="toggleAnon()"></div>
+        </div>
+        <div class="profile-edit-row">
+          <span class="row-label">Match mode</span>
+          <span class="row-value" id="profile-match-mode">Both</span>
+        </div>
+        <div class="profile-edit-row">
+          <span class="row-label">Your Candid link</span>
+          <span class="row-value link" id="profile-link">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchTab('finds', this)">
+      <span class="nav-icon">✦</span>
+      <span class="nav-label">Finds</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('messages', this)">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">Messages</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('profile', this)">
+      <span class="nav-icon">👤</span>
+      <span class="nav-label">You</span>
+    </button>
+  </nav>
+</div>
+
+<!-- MATCH DETAIL MODAL -->
+<div id="modal-match" class="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-content">
+      <button class="modal-back" onclick="closeMatchModal()">←</button>
+      <div class="match-detail-header">
+        <div class="match-detail-avatar" id="modal-avatar">🧑</div>
+        <div>
+          <div class="match-detail-name" id="modal-name">Name</div>
+          <div class="match-detail-role" id="modal-role">Role</div>
+          <span class="match-badge" id="modal-badge">—</span>
+        </div>
+      </div>
+      <div class="match-detail-why">
+        <div class="match-detail-why-label">✦ Why Candid matched you</div>
+        <p id="modal-reason">—</p>
+      </div>
+      <div class="match-detail-section">
+        <div class="match-detail-section-label">What they want to be found for</div>
+        <p id="modal-tagline">—</p>
+      </div>
+      <div class="match-detail-section">
+        <div class="match-detail-section-label">What they're open to</div>
+        <p id="modal-open-to">—</p>
+      </div>
+      <div class="match-detail-section">
+        <div class="match-detail-section-label">Their vibe</div>
+        <p id="modal-vibes">—</p>
+      </div>
+
+      <div class="opener-box">
+        <div class="opener-box-label">
+          ✦ Candid suggests
+          <button class="opener-refresh" onclick="refreshOpener()">Try another</button>
+        </div>
+        <div class="opener-text" id="opener-text">Generating your opener…</div>
+      </div>
+
+      <div class="field-group">
+        <label style="font-size:13px;font-weight:600;margin-bottom:8px;display:block">Say hello</label>
+        <textarea id="modal-message" placeholder="They'll see your Candid profile when they receive this. Keep it real — no pitches." style="width:100%;min-height:80px;font-size:14px;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-family:var(--font-sans);outline:none;background:var(--surface);color:var(--text)"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-send" id="btn-send-msg" onclick="sendMessage()">Send →</button>
+        <div class="dismiss-options">
+          <button class="btn-dismiss-reason" onclick="dismissMatch('professional')">Not right professionally</button>
+          <button class="btn-dismiss-reason" onclick="dismissMatch('personal')">Not right personally</button>
+          <button class="btn-dismiss-reason" onclick="dismissMatch('vibe')">Just not feeling it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script>
+  // ── STATE ──
+  const state = {
+    session: null,
+    profile: null,
+    matches: [],
+    currentFilter: 'all',
+    activeMatch: null,
+    onboardData: { match_mode: null, vibe_tags: [] }
+  };
+
+  // ── UTILS ──
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function showSignIn() {
+    showScreen('signin');
+  }
+
+  function toast(msg, duration = 3000) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), duration);
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 4000);
+  }
+
+  function authHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + state.session?.access_token
+    };
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - new Date(ts).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+  }
+
+  // ── ONBOARDING ──
+  function selectMode(mode, el) {
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    state.onboardData.match_mode = mode;
+    document.getElementById('btn-step1').disabled = false;
+  }
+
+  function toggleVibe(el) {
+    const selected = document.querySelectorAll('.vibe-tag.selected');
+    if (el.classList.contains('selected')) {
+      el.classList.remove('selected');
+      state.onboardData.vibe_tags = state.onboardData.vibe_tags.filter(v => v !== el.textContent);
+    } else {
+      if (selected.length >= 3) { toast('Pick up to 3 vibes'); return; }
+      el.classList.add('selected');
+      state.onboardData.vibe_tags.push(el.textContent);
+    }
+  }
+
+  function goStep(n) {
+    document.querySelectorAll('.onboard-step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  // ── AUTH ──
+  async function handleSignUp() {
+    const email = document.getElementById('ob-email').value.trim();
+    const password = document.getElementById('ob-password').value;
+    const name = document.getElementById('ob-name').value.trim();
+    const tagline = document.getElementById('ob-tagline').value.trim();
+    const achievement = document.getElementById('ob-achievement').value.trim();
+    const open_to = document.getElementById('ob-open-to').value.trim();
+
+    if (!email || !password || !name) {
+      showError('signup-error', 'Please fill in all fields.'); return;
+    }
+    if (password.length < 8) {
+      showError('signup-error', 'Password must be at least 8 characters.'); return;
+    }
+
+    const btn = document.getElementById('btn-signup');
+    btn.disabled = true;
+    btn.textContent = 'Creating your account…';
+
+    try {
+      // 1. Create auth user
+      const authRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'signup', email, password })
+      });
+      const authData = await authRes.json();
+      if (authData.error) { showError('signup-error', authData.error); btn.disabled = false; btn.textContent = 'Find my matches →'; return; }
+
+      // 2. Sign in to get session
+      const signinRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'signin', email, password })
+      });
+      const signinData = await signinRes.json();
+      if (signinData.error) { showError('signup-error', signinData.error); btn.disabled = false; btn.textContent = 'Find my matches →'; return; }
+
+      state.session = signinData.session;
+      localStorage.setItem('candid_session', JSON.stringify(signinData.session));
+
+      // 3. Save profile
+      const profileRes = await fetch('/api/profile', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          name, tagline, achievement, open_to,
+          match_mode: state.onboardData.match_mode || 'both',
+          vibe_tags: state.onboardData.vibe_tags,
+          anonymous_mode: true
+        })
+      });
+      const profileData = await profileRes.json();
+      if (profileData.error) { showError('signup-error', profileData.error); btn.disabled = false; btn.textContent = 'Find my matches →'; return; }
+
+      state.profile = profileData;
+      await loadApp();
+
+      // 4. Generate first matches in background
+      fetch('/api/matches', { method: 'POST', headers: authHeaders() }).then(() => loadMatches());
+
+    } catch (e) {
+      showError('signup-error', 'Something went wrong. Please try again.');
+      btn.disabled = false;
+      btn.textContent = 'Find my matches →';
+    }
+  }
+
+  async function handleSignIn() {
+    const email = document.getElementById('signin-email').value.trim();
+    const password = document.getElementById('signin-password').value;
+    if (!email || !password) { showError('signin-error', 'Please enter email and password.'); return; }
+
+    const btn = document.querySelector('#screen-signin .btn-continue');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'signin', email, password })
+      });
+      const data = await res.json();
+      if (data.error) { showError('signin-error', data.error); btn.disabled = false; btn.textContent = 'Sign in →'; return; }
+
+      state.session = data.session;
+      localStorage.setItem('candid_session', JSON.stringify(data.session));
+
+      const profileRes = await fetch('/api/profile', { headers: authHeaders() });
+      const profileData = await profileRes.json();
+      state.profile = profileData;
+
+      await loadApp();
+    } catch (e) {
+      showError('signin-error', 'Something went wrong.');
+      btn.disabled = false; btn.textContent = 'Sign in →';
+    }
+  }
+
+  function handleSignOut() {
+    state.session = null;
+    state.profile = null;
+    state.matches = [];
+    localStorage.removeItem('candid_session');
+    showScreen('landing');
+  }
+
+  // ── APP LOAD ──
+  async function loadApp() {
+    // Populate identity card
+    document.getElementById('app-name').textContent = state.profile?.name || '—';
+    document.getElementById('app-tagline').textContent = state.profile?.tagline || '—';
+    document.getElementById('profile-name').textContent = state.profile?.name || '—';
+    document.getElementById('profile-tagline').textContent = state.profile?.tagline || '—';
+    document.getElementById('profile-open-to').textContent = state.profile?.open_to || '—';
+    document.getElementById('profile-match-mode').textContent =
+      state.profile?.match_mode ? state.profile.match_mode.charAt(0).toUpperCase() + state.profile.match_mode.slice(1) : 'Both';
+    document.getElementById('profile-link').textContent = state.profile?.candid_link || '—';
+
+    const anonToggle = document.getElementById('anon-toggle');
+    if (state.profile?.anonymous_mode) anonToggle.classList.remove('off');
+    else anonToggle.classList.add('off');
+
+    showScreen('app');
+    await loadMatches();
+    await loadMessages();
+  }
+
+  async function loadMatches() {
+    try {
+      const res = await fetch('/api/matches', { headers: authHeaders() });
+      const data = await res.json();
+      state.matches = Array.isArray(data) ? data : [];
+      renderFinds();
+      document.getElementById('stat-finds').textContent = state.matches.length;
+      document.getElementById('finds-updated').textContent = 'Updated just now';
+    } catch (e) {
+      renderFinds();
+    }
+  }
+
+  async function loadMessages() {
+    try {
+      const res = await fetch('/api/messages', { headers: authHeaders() });
+      const data = await res.json();
+      renderConversations(Array.isArray(data) ? data : []);
+    } catch (e) {}
+  }
+
+  // ── RENDER FINDS ──
+  const EMOJIS = ['🧑‍💼','👩‍🔬','🧑‍🎨','👨‍💻','👩‍💼','🧑‍🏫','👨‍🔬','👩‍🎨'];
+
+  function renderFinds() {
+    const list = document.getElementById('finds-list');
+    let matches = state.matches;
+
+    if (state.currentFilter !== 'all') {
+      matches = matches.filter(m => m.match_type === state.currentFilter);
+    }
+
+    if (!matches.length) {
+      list.innerHTML = `<div class="empty-state"><div class="emoji">✦</div><p>No ${state.currentFilter === 'all' ? '' : state.currentFilter + ' '}finds yet.<br>Check back soon — the engine is working.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = matches.map((m, i) => {
+      const p = m.matched_profile || {};
+      const emoji = EMOJIS[i % EMOJIS.length];
+      const type = m.match_type || 'connection';
+      const badgeSymbol = type === 'chemistry' ? '✦' : type === 'vibe' ? '○' : '●';
+      const tags = (p.vibe_tags || []).slice(0, 3);
+
+      return `<div class="find-card" onclick="openMatch('${m.id}')">
+        <div class="find-card-top">
+          <div class="find-avatar">${emoji}</div>
+          <div class="find-info">
+            <div class="find-name">${p.anonymous_mode ? 'Anonymous' : (p.name || 'Someone interesting')}</div>
+            <div class="find-role">${p.tagline || ''}</div>
+          </div>
+          <span class="match-badge ${type}">${badgeSymbol} ${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+        </div>
+        <div class="find-reason">"${m.match_reason || 'Strong signal detected.'}"</div>
+        ${tags.length ? `<div class="find-tags">${tags.map(t => `<span class="find-tag">${t}</span>`).join('')}</div>` : ''}
+        <div class="find-actions">
+          <button class="btn-connect" onclick="event.stopPropagation();openMatch('${m.id}')">Connect</button>
+          <button class="btn-dismiss" onclick="event.stopPropagation();quickDismiss('${m.id}')">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderConversations(convos) {
+    const el = document.getElementById('conversation-list');
+    if (!convos.length) {
+      el.innerHTML = `<div class="empty-state"><div class="emoji">💬</div><p>No conversations yet.<br>Connect with a find to start a conversation.</p></div>`;
+      return;
+    }
+    el.innerHTML = convos.map((c, i) => {
+      const other = c.sender_id === state.session?.user?.id ? c.receiver : c.sender;
+      return `<div class="convo-item">
+        <div class="convo-avatar">${EMOJIS[i % EMOJIS.length]}</div>
+        <div class="convo-info">
+          <div class="convo-name">${other?.name || 'Connection'}</div>
+          <div class="convo-preview">${c.content}</div>
+        </div>
+        <div class="convo-time">${timeAgo(c.created_at)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── FILTERS ──
+  function filterFinds(type, el) {
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    state.currentFilter = type;
+    renderFinds();
+  }
+
+  // ── MATCH MODAL ──
+  function openMatch(matchId) {
+    const m = state.matches.find(x => x.id === matchId);
+    if (!m) return;
+    state.activeMatch = m;
+    const p = m.matched_profile || {};
+    const type = m.match_type || 'connection';
+    const badgeSymbol = type === 'chemistry' ? '✦' : type === 'vibe' ? '○' : '●';
+
+    document.getElementById('modal-avatar').textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    document.getElementById('modal-name').textContent = p.anonymous_mode ? 'Anonymous' : (p.name || 'Someone interesting');
+    document.getElementById('modal-role').textContent = p.tagline || '';
+    document.getElementById('modal-badge').textContent = badgeSymbol + ' ' + type.charAt(0).toUpperCase() + type.slice(1);
+    document.getElementById('modal-badge').className = 'match-badge ' + type;
+    document.getElementById('modal-reason').textContent = m.match_reason || '—';
+    document.getElementById('modal-tagline').textContent = p.tagline || '—';
+    document.getElementById('modal-open-to').textContent = p.open_to || '—';
+    document.getElementById('modal-vibes').textContent = (p.vibe_tags || []).join(', ') || '—';
+    document.getElementById('modal-message').value = '';
+    document.getElementById('opener-text').textContent = 'Generating your opener…';
+
+    document.getElementById('modal-match').classList.add('open');
+    generateOpener();
+  }
+
+  async function generateOpener() {
+    if (!state.activeMatch || !state.profile) return;
+    const p = state.activeMatch.matched_profile || {};
+    try {
+      const res = await fetch('/api/opener', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          myProfile: state.profile,
+          theirProfile: p,
+          matchReason: state.activeMatch.match_reason
+        })
+      });
+      const data = await res.json();
+      document.getElementById('opener-text').textContent = data.opener || '—';
+      document.getElementById('modal-message').value = data.opener || '';
+    } catch (e) {
+      document.getElementById('opener-text').textContent = 'Could not generate opener.';
+    }
+  }
+
+  function refreshOpener() {
+    document.getElementById('opener-text').textContent = 'Generating…';
+    generateOpener();
+  }
+
+  function closeMatchModal() {
+    document.getElementById('modal-match').classList.remove('open');
+    state.activeMatch = null;
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modal-match')) closeMatchModal();
+  }
+
+  async function sendMessage() {
+    const content = document.getElementById('modal-message').value.trim();
+    if (!content || !state.activeMatch) return;
+
+    const btn = document.getElementById('btn-send-msg');
+    btn.disabled = true; btn.textContent = 'Sending…';
+
+    try {
+      // First connect
+      await fetch('/api/connect', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ receiver_id: state.activeMatch.matched_user_id, action: 'request' })
+      });
+
+      // Then send message
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ receiver_id: state.activeMatch.matched_user_id, content })
+      });
+
+      closeMatchModal();
+      toast('Message sent ✓');
+      await loadMessages();
+      await loadMatches();
+    } catch (e) {
+      toast('Failed to send. Try again.');
+    }
+
+    btn.disabled = false; btn.textContent = 'Send →';
+  }
+
+  async function quickDismiss(matchId) {
+    await fetch('/api/matches', {
+      method: 'DELETE',
+      headers: authHeaders(),
+      body: JSON.stringify({ matchId })
+    });
+    state.matches = state.matches.filter(m => m.id !== matchId);
+    renderFinds();
+    document.getElementById('stat-finds').textContent = state.matches.length;
+  }
+
+  async function dismissMatch(reason) {
+    if (!state.activeMatch) return;
+    await quickDismiss(state.activeMatch.id);
+    closeMatchModal();
+    toast('Got it — we\'ll refine your matches.');
+  }
+
+  // ── PROFILE ACTIONS ──
+  async function toggleAnon() {
+    const toggle = document.getElementById('anon-toggle');
+    const newVal = !state.profile?.anonymous_mode;
+    state.profile.anonymous_mode = newVal;
+    toggle.classList.toggle('off', !newVal);
+
+    await fetch('/api/profile', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ ...state.profile, anonymous_mode: newVal })
+    });
+    toast(newVal ? 'Anonymous mode on' : 'Anonymous mode off');
+  }
+
+  // ── TABS ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (name === 'messages') loadMessages();
+  }
+
+  // ── AUTO LOGIN ──
+  (async function init() {
+    const saved = localStorage.getItem('candid_session');
+    if (saved) {
+      try {
+        const session = JSON.parse(saved);
+        // Check if token is still valid (JWT exp)
+        const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+        if (payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem('candid_session');
+          return;
+        }
+        state.session = session;
+        const profileRes = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + session.access_token } });
+        if (profileRes.ok) {
+          state.profile = await profileRes.json();
+          await loadApp();
+        }
+      } catch (e) {
+        localStorage.removeItem('candid_session');
+      }
+    }
+  })();
+</script>
+</body>
+</html>
