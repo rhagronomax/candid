@@ -1795,16 +1795,25 @@ async function launchApp() {
       alert(signupData.error_description || signupData.error); return;
     }
 
-    const signinData = await supaSignIn(email, password);
-    if (signinData.error || signinData.error_description) {
-      btn.disabled = false; btn.textContent = 'Find my matches →';
-      alert(signinData.error_description || signinData.error); return;
+    // Use session from signup if available, otherwise signin separately
+    let accessToken, refreshToken;
+    if (signupData.access_token) {
+      accessToken = signupData.access_token;
+      refreshToken = signupData.refresh_token;
+    } else {
+      const signinData = await supaSignIn(email, password);
+      if (signinData.error || signinData.error_description) {
+        btn.disabled = false; btn.textContent = 'Find my matches →';
+        alert(signinData.error_description || signinData.error); return;
+      }
+      accessToken = signinData.access_token;
+      refreshToken = signinData.refresh_token;
     }
 
-    _session = { access_token: signinData.access_token, refresh_token: signinData.refresh_token };
+    _session = { access_token: accessToken, refresh_token: refreshToken };
     localStorage.setItem('candid_session', JSON.stringify(_session));
 
-    const uid = JSON.parse(atob(signinData.access_token.split('.')[1])).sub;
+    const uid = JSON.parse(atob(accessToken.split('.')[1])).sub;
     await supaUpsertProfile({
       id: uid, name, tagline: found, achievement: built, open_to: open,
       current_focus: focus, match_mode: selectedMode||'both', vibe_tags: selectedVibes,
