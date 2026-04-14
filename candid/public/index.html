@@ -1649,129 +1649,122 @@ html, body {
 </div>
 
 <script>
+// ── STATE ──
+const SUPA_URL = 'https://sttkixdqnetxkritldzh.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0dGtpeGRxbmV0eGtyaXRsZHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzMwMjksImV4cCI6MjA5MTcwOTAyOX0.mP-iiB9ji0J1mSbqUMYBnZOOPU9ZPotbV7W3uP9oiB0';
+let _session = null;
 let selectedMode = null;
 let selectedVibes = [];
 let currentMatch = '';
 let currentMatchData = {};
 let anonOn = true;
 let implicitSignals = { opens:{}, messages:{}, passes:{} };
-let intentDrift = { professional:0, personal:0, feeling:0 };
+let intentDrift = {};
 
-// ── ANTHROPIC API ──
-// ── SUPABASE DIRECT CLIENT ──
-const SUPA_URL = 'https://sttkixdqnetxkritldzh.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0dGtpeGRxbmV0eGtyaXRsZHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzMwMjksImV4cCI6MjA5MTcwOTAyOX0.mP-iiB9ji0J1mSbqUMYBnZOOPU9ZPotbV7W3uP9oiB0';
-
-let _session = null;
-
-function authHeaders() {
-  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_session?.access_token || '') };
-}
-
+// ── SUPABASE ──
 async function supaSignUp(email, password) {
-  const res = await fetch(`${SUPA_URL}/auth/v1/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
-    body: JSON.stringify({ email, password })
+  const r = await fetch(`${SUPA_URL}/auth/v1/signup`, {
+    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+    body: JSON.stringify({email, password})
   });
-  return res.json();
+  return r.json();
 }
 
 async function supaSignIn(email, password) {
-  const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
-    body: JSON.stringify({ email, password })
+  const r = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+    body: JSON.stringify({email, password})
   });
-  return res.json();
-}
-
-async function supaUpsertProfile(profile, token) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Prefer': 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify(profile)
-  });
-  const data = await res.json();
-  return Array.isArray(data) ? data[0] : data;
+  return r.json();
 }
 
 async function supaGetProfile(token) {
-  const payload = JSON.parse(atob(token.split('.')[1]));
-  const userId = payload.sub;
-  const res = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${userId}&select=*`, {
-    headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}` }
+  const uid = JSON.parse(atob(token.split('.')[1])).sub;
+  const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}&select=*`, {
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
   });
-  const data = await res.json();
-  return data[0] || null;
+  const d = await r.json();
+  return Array.isArray(d) ? d[0]||null : null;
 }
 
-async function callClaude(systemPrompt, userMessage, maxTokens=400) {
-  try {
-    const res = await fetch('/api/claude', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ system: systemPrompt, message: userMessage, maxTokens })
-    });
-    const data = await res.json();
-    return data.text || '';
-  } catch(e) { return ''; }
+async function supaUpsertProfile(profile, token) {
+  const r = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Prefer':'resolution=merge-duplicates,return=representation'},
+    body: JSON.stringify(profile)
+  });
+  const d = await r.json();
+  return Array.isArray(d) ? d[0] : d;
+}
+
+function authHeaders() {
+  return {'Content-Type':'application/json','Authorization':'Bearer '+(_session?.access_token||'')};
+}
+
+// ── UI HELPERS ──
+function populateUI(profile) {
+  if (!profile) return;
+  const name = profile.name || '';
+  const tagline = profile.tagline || '';
+  const el = (id) => document.getElementById(id);
+  if (el('yc-name')) el('yc-name').textContent = name;
+  if (el('yc-role')) el('yc-role').textContent = tagline;
+  if (el('you-name')) el('you-name').textContent = name;
+  if (el('you-role')) el('you-role').textContent = tagline;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
 // ── AUTO LOGIN ──
-(async function initAuth() {
+(async function init() {
   const saved = localStorage.getItem('candid_session');
   if (!saved) return;
   try {
-    const session = JSON.parse(saved);
-    const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-    if (payload.exp * 1000 < Date.now()) { localStorage.removeItem('candid_session'); return; }
-    _session = session;
-    const profile = await supaGetProfile(session.access_token);
-    if (profile && profile.name) {
-      populateUI(profile);
-      showScreen('app');
-      checkFilterVisibility();
-      loadRealMatches();
-    }
+    const sess = JSON.parse(saved);
+    const exp = JSON.parse(atob(sess.access_token.split('.')[1])).exp;
+    if (exp * 1000 < Date.now()) { localStorage.removeItem('candid_session'); return; }
+    _session = sess;
+    const profile = await supaGetProfile(sess.access_token);
+    populateUI(profile);
+    showScreen('app');
+    checkFilterVisibility();
+    loadRealMatches();
   } catch(e) { localStorage.removeItem('candid_session'); }
 })();
 
-function populateUI(profile) {
-  if (!profile) return;
-  const name = profile.name || '—';
-  const tagline = profile.tagline || '—';
-  document.getElementById('yc-name').textContent = name;
-  document.getElementById('yc-role').textContent = tagline;
-  const youName = document.getElementById('you-name');
-  const youRole = document.getElementById('you-role');
-  if (youName) youName.textContent = name;
-  if (youRole) youRole.textContent = tagline;
-}
-
+// ── SIGN IN ──
 async function doSignIn() {
   const email = document.getElementById('si-email').value.trim();
   const password = document.getElementById('si-password').value;
   const btn = document.getElementById('si-btn');
-  const err = document.getElementById('signin-err');
-  err.style.display = 'none';
+  const errEl = document.getElementById('signin-err');
+  if (errEl) errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Signing in…';
+
   try {
     const data = await supaSignIn(email, password);
     if (data.error || data.error_description) {
-      err.textContent = data.error_description || data.error;
-      err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Sign in →'; return;
+      if (errEl) { errEl.textContent = data.error_description || data.error; errEl.style.display = 'block'; }
+      btn.disabled = false; btn.textContent = 'Sign in →'; return;
     }
     _session = { access_token: data.access_token, refresh_token: data.refresh_token };
     localStorage.setItem('candid_session', JSON.stringify(_session));
     const profile = await supaGetProfile(data.access_token);
-    if (profile && profile.name) populateUI(profile);
+    populateUI(profile);
     showScreen('app');
     checkFilterVisibility();
     loadRealMatches();
   } catch(e) {
-    err.textContent = e.message || 'Something went wrong. Try again.';
-    err.style.display = 'block';
+    if (errEl) { errEl.textContent = e.message || 'Sign in failed'; errEl.style.display = 'block'; }
     btn.disabled = false; btn.textContent = 'Sign in →';
   }
 }
@@ -1782,33 +1775,57 @@ function signOut() {
   showScreen('splash');
 }
 
-// ── SPLASH ──
-function startOnboarding() {
-  showScreen('onboarding');
-}
+// ── SIGN UP / LAUNCH APP ──
+async function launchApp() {
+  const name = document.getElementById('input-name')?.value.trim() || '';
+  const found = document.getElementById('input-found')?.value.trim() || '';
+  const built = document.getElementById('input-built')?.value.trim() || '';
+  const open = document.getElementById('input-open')?.value.trim() || '';
+  const focus = document.getElementById('input-focus')?.value.trim() || '';
+  const email = document.getElementById('input-email')?.value.trim() || '';
+  const password = document.getElementById('input-password')?.value || '';
 
-function skipToApp() {
-  showScreen('screen-signin');
-}
+  const btn = document.getElementById('step4-next');
+  btn.disabled = true; btn.textContent = 'Creating your account…';
 
-// ── BROWSER BACK BUTTON ──
-const screenHistory = [];
+  try {
+    const signupData = await supaSignUp(email, password);
+    if (signupData.error || signupData.error_description) {
+      btn.disabled = false; btn.textContent = 'Find my matches →';
+      alert(signupData.error_description || signupData.error); return;
+    }
 
-function showScreen(id) {
-  const current = document.querySelector('.screen.active')?.id;
-  if (current && current !== id) screenHistory.push(current);
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  try { history.pushState({ screen: id }, '', ''); } catch(e) {}
-}
+    const signinData = await supaSignIn(email, password);
+    if (signinData.error || signinData.error_description) {
+      btn.disabled = false; btn.textContent = 'Find my matches →';
+      alert(signinData.error_description || signinData.error); return;
+    }
 
-window.addEventListener('popstate', (e) => {
-  const prev = screenHistory.pop();
-  if (prev) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    try { document.getElementById(prev).classList.add('active'); } catch(e) {}
+    _session = { access_token: signinData.access_token, refresh_token: signinData.refresh_token };
+    localStorage.setItem('candid_session', JSON.stringify(_session));
+
+    const uid = JSON.parse(atob(signinData.access_token.split('.')[1])).sub;
+    await supaUpsertProfile({
+      id: uid, name, tagline: found, achievement: built, open_to: open,
+      current_focus: focus, match_mode: selectedMode||'both', vibe_tags: selectedVibes,
+      anonymous_mode: true,
+      candid_link: 'candid.so/'+name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')
+    }, signinData.access_token);
+
+    populateUI({ name, tagline: found });
+    showScreen('app');
+    checkFilterVisibility();
+    fetch('/api/matches', { method:'POST', headers: authHeaders() }).then(() => loadRealMatches());
+
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Find my matches →';
+    alert(e.message || 'Something went wrong');
   }
-});
+}
+
+// ── SPLASH ──
+function startOnboarding() { showScreen('onboarding'); }
+function skipToApp() { showScreen('screen-signin'); }
 
 // ── ONBOARDING ──
 function selectMode(el, mode) {
@@ -1820,155 +1837,77 @@ function selectMode(el, mode) {
 
 function goStep(n) {
   document.querySelectorAll('#onboarding > div').forEach(d => d.style.display = 'none');
-  const step = document.getElementById('step-' + n);
-  step.style.display = 'flex';
+  const step = document.getElementById('step-'+n);
+  if (step) step.style.display = 'flex';
 }
 
 function checkStep2() {
-  const name = document.getElementById('input-name').value.trim();
-  const found = document.getElementById('input-found').value.trim();
-  const open = document.getElementById('input-open').value.trim();
-  document.getElementById('step2-next').disabled = !(name && found && open);
+  const name = document.getElementById('input-name')?.value.trim();
+  const found = document.getElementById('input-found')?.value.trim();
+  const open = document.getElementById('input-open')?.value.trim();
+  const btn = document.getElementById('step2-next');
+  if (btn) btn.disabled = !(name && found && open);
 }
 
 function toggleVibe(el) {
-  if(el.classList.contains('selected')) {
+  if (el.classList.contains('selected')) {
     el.classList.remove('selected');
     selectedVibes = selectedVibes.filter(v => v !== el.textContent);
   } else {
-    if(selectedVibes.length >= 3) return;
+    if (selectedVibes.length >= 3) return;
     el.classList.add('selected');
     selectedVibes.push(el.textContent);
   }
 }
 
-async function launchApp() {
-  const name = document.getElementById('input-name').value.trim();
-  const found = document.getElementById('input-found').value.trim();
-  const built = document.getElementById('input-built')?.value.trim() || '';
-  const open = document.getElementById('input-open')?.value.trim() || '';
-  const email = document.getElementById('input-email').value.trim();
-  const password = document.getElementById('input-password').value;
-
+function checkStep4() {
+  const email = document.getElementById('input-email')?.value.trim();
+  const pass = document.getElementById('input-password')?.value.trim();
   const btn = document.getElementById('step4-next');
-  btn.disabled = true; btn.textContent = 'Creating your account…';
-
-  try {
-    // 1. Sign up directly with Supabase
-    const signupData = await supaSignUp(email, password);
-    if (signupData.error || signupData.error_description) {
-      btn.disabled = false; btn.textContent = 'Find my matches →';
-      alert(signupData.error_description || signupData.error); return;
-    }
-
-    // 2. Sign in to get session
-    const signinData = await supaSignIn(email, password);
-    if (signinData.error || signinData.error_description) {
-      btn.disabled = false; btn.textContent = 'Find my matches →';
-      alert(signinData.error_description || signinData.error); return;
-    }
-
-    _session = { access_token: signinData.access_token, refresh_token: signinData.refresh_token };
-    localStorage.setItem('candid_session', JSON.stringify(_session));
-
-    // 3. Save profile directly to Supabase
-    const userId = JSON.parse(atob(signinData.access_token.split('.')[1])).sub;
-    const focus = document.getElementById('input-focus')?.value.trim() || '';
-    await supaUpsertProfile({
-      id: userId, name, tagline: found, achievement: built, open_to: open,
-      current_focus: focus,
-      match_mode: selectedMode || 'both', vibe_tags: selectedVibes, anonymous_mode: true,
-      candid_link: 'candid.so/' + name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')
-    }, signinData.access_token);
-
-    // 4. Update UI
-    populateUI({ name, tagline: found, open_to: open });
-    showScreen('app');
-    checkFilterVisibility();
-
-    // 5. Generate matches via function
-    fetch('/api/matches', { method: 'POST', headers: authHeaders() }).then(() => loadRealMatches());
-
-  } catch(e) {
-    btn.disabled = false; btn.textContent = 'Find my matches →';
-    alert('Error: ' + e.message);
-  }
+  if (btn) btn.disabled = !(email && pass && pass.length >= 8);
 }
 
-// ── TRUST SIGNAL ──
-function calcTrustSignal(profile) {
-  // Legibility: specific, coherent profile
-  let legibility = 0;
-  if (profile.tagline && profile.tagline.length > 15) legibility++;
-  if (profile.achievement && profile.achievement.length > 20) legibility++;
-  if (profile.open_to && profile.open_to.length > 5) legibility++;
-  const legibilityLit = legibility >= 2;
-
-  // Suspension: willingness to be found
-  let suspension = 0;
-  if (!profile.anonymous_mode) suspension++;
-  if (profile.vibe_tags && profile.vibe_tags.length >= 2) suspension++;
-  if (profile.open_to && !['anything','all','everything'].includes(profile.open_to.toLowerCase().trim())) suspension++;
-  const suspensionLit = suspension >= 2;
-
-  // Resonance: placeholder until behavioral data exists
-  const resonanceLit = false;
-
-  return { legibilityLit, suspensionLit, resonanceLit };
-}
-
-function renderTrustSignal(profile) {
-  const { legibilityLit, suspensionLit, resonanceLit } = calcTrustSignal(profile);
-  return `<div class="trust-signal">
-    <span class="ts-label">Trust signal</span>
-    <div class="ts-bars">
-      <div class="ts-bar ${legibilityLit ? 'lit-legibility' : ''}" title="Legibility"></div>
-      <div class="ts-bar ${suspensionLit ? 'lit-suspension' : ''}" title="Suspension"></div>
-      <div class="ts-bar ${resonanceLit ? 'lit-resonance' : ''}" title="Resonance"></div>
-    </div>
-    <span style="font-size:0.6rem;color:var(--muted);margin-left:0.25rem;">${[legibilityLit?'L':'',suspensionLit?'S':'',resonanceLit?'R':''].filter(Boolean).join('·') || '—'}</span>
-  </div>`;
-}
-
-// ── LOAD REAL MATCHES from API ──
+// ── MATCHES ──
 async function loadRealMatches() {
   try {
     const res = await fetch('/api/matches', { headers: authHeaders() });
     const matches = await res.json();
-    if (!Array.isArray(matches) || matches.length === 0) return;
+    if (!Array.isArray(matches) || !matches.length) return;
 
-    const list = document.getElementById('matches-list');
     const EMOJIS = ['🧑‍🔬','👨‍💼','👩‍💼','👨‍💻','🧑‍🎨','👩‍🔬','🧑‍💼','👨‍🎨'];
-    const levelMap = { chemistry: 'chem', connection: 'connect', vibe: 'vibe' };
-    const badgeMap = { chemistry: '✦ Chemistry', connection: '● Connection', vibe: '○ Vibe' };
-    const classMap = { chemistry: 'ml-chem', connection: 'ml-connect', vibe: 'ml-vibe' };
+    const levelMap = { chemistry:'chem', connection:'connect', vibe:'vibe' };
+    const badgeMap = { chemistry:'✦ Chemistry', connection:'● Connection', vibe:'○ Vibe' };
+    const classMap = { chemistry:'ml-chem', connection:'ml-connect', vibe:'ml-vibe' };
+    const list = document.getElementById('matches-list');
+    if (!list) return;
 
-    list.innerHTML = matches.map((m, i) => {
+    list.innerHTML = matches.map((m,i) => {
       const p = m.matched_profile || {};
       const emoji = EMOJIS[i % EMOJIS.length];
       const lvl = levelMap[m.match_type] || 'vibe';
-      const tags = (p.vibe_tags || []).slice(0, 3);
+      const tags = (p.vibe_tags||[]).slice(0,3);
       const tagsHtml = tags.map(t => `<span class="match-tag">${t}</span>`).join('');
       const why = m.match_reason || '';
-      const name = p.anonymous_mode ? 'Anonymous' : (p.name || 'Someone interesting');
+      const name = p.anonymous_mode ? 'Anonymous' : (p.name||'Someone interesting');
       const role = p.tagline || '';
       const focus = p.current_focus ? `<div class="pro-layer"><div class="pro-layer-label">Currently</div>${p.current_focus}</div>` : '';
-      const trustHtml = renderTrustSignal(p);
+      const trust = renderTrustSignal(p);
+      const safeArgs = [name,role,lvl,emoji,why,(p.vibe_tags||[]).join(', '),tags,p.achievement||'',p.open_to||''].map(a => typeof a === 'string' ? a.replace(/'/g,"\\'") : a);
 
-      return `<div class="match-card slide-up" data-level="${lvl}" style="animation-delay:${i*0.1}s" onclick="openMatch('${name.replace(/'/g,"\\'")}','${role.replace(/'/g,"\\'")}','${lvl}','${emoji}','${why.replace(/'/g,"\\'")}','${(p.vibe_tags||[]).join(", ")}',${JSON.stringify(tags)},'${(p.achievement||'').replace(/'/g,"\\'")}','${(p.open_to||'').replace(/'/g,"\\'")}')">
+      return `<div class="match-card slide-up" data-level="${lvl}" style="animation-delay:${i*0.1}s" onclick="openMatch('${safeArgs[0]}','${safeArgs[1]}','${safeArgs[2]}','${safeArgs[3]}','${safeArgs[4]}','${safeArgs[5]}',${JSON.stringify(tags)},'${safeArgs[7]}','${safeArgs[8]}')">
         <div class="match-card-top">
           <div class="match-avatar">${emoji}</div>
           <div class="match-info">
             <div class="match-name-row">
               <div class="match-name">${name}</div>
-              <div class="match-level ${classMap[m.match_type] || 'ml-vibe'}">${badgeMap[m.match_type] || '○ Vibe'}</div>
+              <div class="match-level ${classMap[m.match_type]||'ml-vibe'}">${badgeMap[m.match_type]||'○ Vibe'}</div>
             </div>
             <div class="match-role">${role}</div>
             ${focus}
             <div class="match-why">"${why}"</div>
           </div>
         </div>
-        ${trustHtml}
+        ${trust}
         <div class="match-card-bottom">
           <div class="match-tags">${tagsHtml}</div>
           <button class="match-connect-btn" onclick="event.stopPropagation();openMsg('${name.split(' ')[0]}')">Connect</button>
@@ -1976,55 +1915,179 @@ async function loadRealMatches() {
       </div>`;
     }).join('');
 
-    // Update stats
-    const chemCount = matches.filter(m => m.match_type === 'chemistry').length;
-    document.querySelectorAll('.yc-stat-n').forEach((el, i) => {
-      if (i === 0) el.textContent = matches.length;
-      if (i === 2) el.textContent = chemCount;
+    const chemCount = matches.filter(m => m.match_type==='chemistry').length;
+    document.querySelectorAll('.yc-stat-n').forEach((el,i) => {
+      if (i===0) el.textContent = matches.length;
+      if (i===2) el.textContent = chemCount;
     });
-
     checkFilterVisibility();
-  } catch(e) { console.log('Match load error', e); }
+  } catch(e) { console.log('Match load error:', e.message); }
 }
 
 function checkFilterVisibility() {
-  const matchCount = document.querySelectorAll('.match-card').length;
   const wrap = document.getElementById('level-filter-wrap');
-  if(wrap) wrap.style.display = matchCount >= 10 ? 'block' : 'none';
+  if (wrap) wrap.style.display = document.querySelectorAll('.match-card').length >= 10 ? 'block' : 'none';
 }
 
-// ── ANON ──
+// ── TRUST SIGNAL ──
+function calcTrustSignal(profile) {
+  let leg = 0;
+  if (profile.tagline && profile.tagline.length > 15) leg++;
+  if (profile.achievement && profile.achievement.length > 20) leg++;
+  if (profile.open_to && profile.open_to.length > 5) leg++;
+
+  let sus = 0;
+  if (!profile.anonymous_mode) sus++;
+  if ((profile.vibe_tags||[]).length >= 2) sus++;
+  if (profile.open_to && profile.open_to.length > 5) sus++;
+
+  return { legibilityLit: leg >= 2, suspensionLit: sus >= 2, resonanceLit: false };
+}
+
+function renderTrustSignal(profile) {
+  const { legibilityLit, suspensionLit, resonanceLit } = calcTrustSignal(profile);
+  return `<div class="trust-signal">
+    <span class="ts-label">Trust signal</span>
+    <div class="ts-bars">
+      <div class="ts-bar ${legibilityLit?'lit-legibility':''}" title="Legibility"></div>
+      <div class="ts-bar ${suspensionLit?'lit-suspension':''}" title="Suspension"></div>
+      <div class="ts-bar ${resonanceLit?'lit-resonance':''}" title="Resonance"></div>
+    </div>
+    <span style="font-size:0.6rem;color:var(--muted);margin-left:0.25rem;">${[legibilityLit?'L':'',suspensionLit?'S':'',resonanceLit?'R':''].filter(Boolean).join('·')||'—'}</span>
+  </div>`;
+}
+
+// ── YOU TAB ──
+async function loadYouTab() {
+  if (!_session) return;
+  try {
+    const profile = await supaGetProfile(_session.access_token);
+    if (!profile) return;
+    const el = (id) => document.getElementById(id);
+    if (el('you-name')) el('you-name').textContent = profile.name||'—';
+    if (el('you-role')) el('you-role').textContent = profile.tagline||'—';
+    if (el('you-link')) el('you-link').textContent = profile.candid_link||'—';
+    if (el('edit-tagline')) el('edit-tagline').value = profile.tagline||'';
+    if (el('edit-focus')) el('edit-focus').value = profile.current_focus||'';
+    if (el('edit-achievement')) el('edit-achievement').value = profile.achievement||'';
+    if (el('edit-open-to')) el('edit-open-to').value = profile.open_to||'';
+    if (profile.photo_url && el('profile-photo-display')) {
+      el('profile-photo-display').innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    }
+    const toggle = el('you-anon-toggle');
+    if (toggle) toggle.classList.toggle('off', !profile.anonymous_mode);
+    previewTrustSignal();
+  } catch(e) { console.log('loadYouTab error:', e.message); }
+}
+
+function previewTrustSignal() {
+  const el = (id) => document.getElementById(id);
+  const profile = {
+    tagline: el('edit-tagline')?.value||'',
+    achievement: el('edit-achievement')?.value||'',
+    open_to: el('edit-open-to')?.value||'',
+    anonymous_mode: el('you-anon-toggle')?.classList.contains('off'),
+    vibe_tags: []
+  };
+  const { legibilityLit, suspensionLit, resonanceLit } = calcTrustSignal(profile);
+  const setBar = (id, cls) => { const b = el(id); if(b) b.className = 'ts-bar'+(cls?' '+cls:''); };
+  setBar('ts-you-legibility', legibilityLit?'lit-legibility':'');
+  setBar('ts-you-suspension', suspensionLit?'lit-suspension':'');
+  setBar('ts-you-resonance', resonanceLit?'lit-resonance':'');
+  const hint = el('ts-you-hint');
+  if (hint) hint.textContent = !legibilityLit ? 'Add a specific tagline and achievement to improve Legibility.' : !suspensionLit ? 'Add vibes and open up your profile to improve Suspension.' : 'Your Trust Signal is strong.';
+}
+
+async function saveProfile() {
+  if (!_session) return;
+  const btn = document.getElementById('save-profile-btn');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+  try {
+    const el = (id) => document.getElementById(id);
+    const uid = JSON.parse(atob(_session.access_token.split('.')[1])).sub;
+    const tagline = el('edit-tagline')?.value.trim()||'';
+    await supaUpsertProfile({
+      id: uid,
+      tagline,
+      current_focus: el('edit-focus')?.value.trim()||'',
+      achievement: el('edit-achievement')?.value.trim()||'',
+      open_to: el('edit-open-to')?.value.trim()||''
+    }, _session.access_token);
+    if (el('yc-role')) el('yc-role').textContent = tagline;
+    if (el('you-role')) el('you-role').textContent = tagline;
+    previewTrustSignal();
+    if (btn) { btn.textContent = 'Saved ✓'; btn.disabled = false; setTimeout(()=>{ btn.textContent='Save'; },2000); }
+  } catch(e) {
+    if (btn) { btn.textContent = 'Error'; btn.disabled = false; }
+  }
+}
+
+async function handlePhotoUpload(input) {
+  const file = input.files[0];
+  if (!file || !_session) return;
+  const uid = JSON.parse(atob(_session.access_token.split('.')[1])).sub;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const el = document.getElementById('profile-photo-display');
+    if (el) el.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${uid}/avatar.${ext}`;
+      const uploadRes = await fetch(`${SUPA_URL}/storage/v1/object/avatars/${path}`, {
+        method:'POST',
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token,'Content-Type':file.type,'x-upsert':'true'},
+        body: file
+      });
+      if (uploadRes.ok) {
+        const photo_url = `${SUPA_URL}/storage/v1/object/public/avatars/${path}`;
+        await supaUpsertProfile({ id: uid, photo_url }, _session.access_token);
+      }
+    } catch(e) { console.log('Photo upload error:', e.message); }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── ANON TOGGLE ──
 function toggleAnon() {
   anonOn = !anonOn;
-  const toggle = document.getElementById('anon-toggle');
-  toggle.classList.toggle('off', !anonOn);
+  const t = document.getElementById('anon-toggle');
+  if (t) t.classList.toggle('off', !anonOn);
+}
+
+function toggleAnonYou() {
+  anonOn = !anonOn;
+  const t1 = document.getElementById('anon-toggle');
+  const t2 = document.getElementById('you-anon-toggle');
+  if (t1) t1.classList.toggle('off', !anonOn);
+  if (t2) t2.classList.toggle('off', !anonOn);
 }
 
 // ── FILTER ──
 function filterLevel(level, btn) {
-  document.querySelectorAll('.level-pill').forEach(p => {
-    p.className = 'level-pill';
-  });
-  if(level === 'all') btn.classList.add('active-all');
-  else if(level === 'chem') btn.classList.add('active-chem');
-  else if(level === 'connect') btn.classList.add('active-connect');
-  else if(level === 'vibe') btn.classList.add('active-vibe');
-
+  document.querySelectorAll('.level-pill').forEach(p => p.className = 'level-pill');
+  if (level==='all') btn.classList.add('active-all');
+  else if (level==='chem') btn.classList.add('active-chem');
+  else if (level==='connect') btn.classList.add('active-connect');
+  else if (level==='vibe') btn.classList.add('active-vibe');
   document.querySelectorAll('.match-card').forEach(card => {
-    if(level === 'all') card.style.display = '';
-    else card.style.display = card.dataset.level === level ? '' : 'none';
+    card.style.display = level==='all' || card.dataset.level===level ? '' : 'none';
   });
+}
+
+// ── TAB SWITCHING ──
+function switchTab(tab, btn) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (tab==='finds') { showScreen('app'); }
+  else if (tab==='messages') { showScreen('screen-messages'); }
+  else if (tab==='you') { showScreen('screen-you'); loadYouTab(); }
 }
 
 // ── MATCH DETAIL ──
 function openMatch(name, role, level, avatar, why, vibes, tags, built, open) {
   currentMatch = name.split(' ')[0];
-  
-  // Store match data for AI functions
   currentMatchData = { name, role, level, avatar, why, vibes, built: built||'—', open: open||'—' };
-  
-  // Track implicit signal — this person was opened
-  implicitSignals.opens[name] = (implicitSignals.opens[name] || 0) + 1;
+  implicitSignals.opens[name] = (implicitSignals.opens[name]||0) + 1;
 
   document.getElementById('detail-header-name').textContent = name;
   document.getElementById('detail-name').textContent = name;
@@ -2032,418 +2095,196 @@ function openMatch(name, role, level, avatar, why, vibes, tags, built, open) {
   document.getElementById('detail-avatar').textContent = avatar;
   document.getElementById('detail-vibe').textContent = vibes;
 
-  // Generate why-matched explanation via AI
   generateWhyMatched(name, role, why, vibes);
 
   const badge = document.getElementById('detail-badge');
-  if(level === 'chem') {
-    badge.textContent = '✦ Chemistry';
-    badge.style.background = 'rgba(255,60,172,0.1)';
-    badge.style.color = '#ff3cac';
-    document.getElementById('detail-found').textContent = built || 'Bridging academic AI ethics research and real-world governance frameworks.';
-    document.getElementById('detail-open').textContent = open || 'Research collaboration, co-authorship, intellectual exchange, genuine friendship.';
-  } else if(level === 'connect') {
-    badge.textContent = '● Connection';
-    badge.style.background = 'rgba(0,204,255,0.1)';
-    badge.style.color = '#00ccff';
-    document.getElementById('detail-found').textContent = built || 'Senior expertise in AI governance, trust diagnostics, and insurance technology.';
-    document.getElementById('detail-open').textContent = open || 'Advisory relationships, consulting engagements, and the right strategic partnership.';
-  } else {
-    badge.textContent = '○ Vibe';
-    badge.style.background = 'rgba(0,255,178,0.1)';
-    badge.style.color = '#00FFB2';
-    document.getElementById('detail-found').textContent = built || 'Digital transformation leadership in financial services — APAC markets.';
-    document.getElementById('detail-open').textContent = open || 'Conversation with people navigating similar transitions. Collaboration. Possibly more.';
-  }
+  const colors = { chem:['✦ Chemistry','rgba(255,60,172,0.1)','#ff3cac'], connect:['● Connection','rgba(0,204,255,0.1)','#00ccff'], vibe:['○ Vibe','rgba(0,255,178,0.1)','#00FFB2'] };
+  const [text, bg, color] = colors[level] || colors.vibe;
+  badge.textContent = text; badge.style.background = bg; badge.style.color = color;
 
-  // Reset starter
+  document.getElementById('detail-found').textContent = built || '—';
+  document.getElementById('detail-open').textContent = open || '—';
+
   document.getElementById('starter-wrap').style.display = 'none';
   document.getElementById('starter-loading').style.display = 'none';
 
   showScreen('match-detail');
-  
-  // Auto-generate starter after 1.5s
   setTimeout(generateStarter, 1500);
 }
 
-// ── AI WHY MATCHED ──
-async function generateWhyMatched(name, role, seedWhy, vibes) {
-  const el = document.getElementById('detail-why');
-  el.textContent = seedWhy; // show seed first
-  
-  const myName = document.getElementById('yc-name').textContent || 'You';
-  const myRole = document.getElementById('yc-role').textContent || '';
-  const myBuilt = document.getElementById('input-built')?.value || '';
-  
-  const system = 'You write the "why matched" explanation for Candid — a human matching platform. Be warm, specific, and insightful. One to two sentences. No generic phrases like "you both value connection". Find the real intellectual or professional overlap.';
-  const prompt = `${myName} (${myRole}${myBuilt ? ', who built: ' + myBuilt : ''}) was matched with ${name} (${role}) because: ${seedWhy}. Their shared vibes: ${vibes}. Write one specific, warm sentence explaining exactly why this match makes sense.`;
-  
-  const result = await callClaude(system, prompt, 150);
-  if(result) el.textContent = result;
+function closeDetail() { showScreen('app'); }
+
+// ── AI FUNCTIONS ──
+async function callClaude(system, message, maxTokens=400) {
+  try {
+    const r = await fetch('/api/claude', {
+      method:'POST', headers: authHeaders(),
+      body: JSON.stringify({ system, message, maxTokens })
+    });
+    const d = await r.json();
+    return d.text || '';
+  } catch(e) { return ''; }
 }
 
-// ── AI CONVERSATION STARTER ──
+async function generateWhyMatched(name, role, seedWhy, vibes) {
+  const el = document.getElementById('detail-why');
+  if (el) el.textContent = seedWhy;
+  const myName = document.getElementById('yc-name')?.textContent || '';
+  const myRole = document.getElementById('yc-role')?.textContent || '';
+  const system = 'You write the "why matched" explanation for Candid. Be warm, specific. One sentence.';
+  const prompt = `${myName} (${myRole}) matched with ${name} (${role}) because: ${seedWhy}. Shared vibes: ${vibes}. Write one specific warm sentence.`;
+  const result = await callClaude(system, prompt, 150);
+  if (result && el) el.textContent = result;
+}
+
 async function generateStarter(inModal=false) {
   const wrap = document.getElementById('starter-wrap');
   const loading = document.getElementById('starter-loading');
   const starterEl = document.getElementById('starter-text');
-  
-  if(!inModal) {
-    wrap.style.display = 'none';
-    loading.style.display = 'block';
-  }
+  if (!inModal) { if(wrap) wrap.style.display='none'; if(loading) loading.style.display='block'; }
 
-  const myName = document.getElementById('yc-name').textContent || 'You';
-  const myRole = document.getElementById('yc-role').textContent || '';
-  const myBuilt = document.getElementById('input-built')?.value || '';
+  const myName = document.getElementById('yc-name')?.textContent || '';
+  const myRole = document.getElementById('yc-role')?.textContent || '';
   const m = currentMatchData;
-  
-  const system = 'You write opening messages for Candid — a human matching platform. Write one specific, warm, curious message. Not a pitch. Not generic. A genuine question that shows you read their profile and that only makes sense for these two specific people. Under 60 words. No subject line. Start with their first name.';
-  const prompt = `From: ${myName}, ${myRole}${myBuilt ? '. Built: ' + myBuilt : ''}. To: ${m.name}, ${m.role}. Built/solved: ${m.built}. Match reason: ${m.why}. Vibes: ${m.vibes}. Write one opening message.`;
-  
+  const system = 'You write opening messages for Candid. Write one specific, warm, curious message. Not a pitch. Under 60 words. Start with their first name.';
+  const prompt = `From: ${myName}, ${myRole}. To: ${m.name}, ${m.role}. Built: ${m.built}. Match reason: ${m.why}. Vibes: ${m.vibes}. Write one opening message.`;
   const result = await callClaude(system, prompt, 120);
-  
-  loading.style.display = 'none';
-  
-  if(result) {
-    starterEl.textContent = result;
-    wrap.style.display = 'block';
-    if(inModal) {
-      document.getElementById('msg-text').value = result;
-    }
+  if (loading) loading.style.display = 'none';
+  if (result) {
+    if (starterEl) starterEl.textContent = result;
+    if (wrap) wrap.style.display = 'block';
+    if (inModal) { const mt = document.getElementById('msg-text'); if(mt) mt.value = result; }
   }
 }
 
 function useStarter() {
-  const text = document.getElementById('starter-text').textContent;
+  const text = document.getElementById('starter-text')?.textContent;
   openMsg(currentMatchData.name.split(' ')[0]);
-  setTimeout(() => { document.getElementById('msg-text').value = text; }, 100);
+  setTimeout(() => { const mt = document.getElementById('msg-text'); if(mt) mt.value = text; }, 100);
 }
 
-// ── IMPLICIT SIGNAL TRACKING ──
-function trackConnect() {
-  implicitSignals.messages[currentMatch] = (implicitSignals.messages[currentMatch] || 0) + 1;
-  updateIntentWeights();
-}
-
-function recordMiss(reason) {
-  implicitSignals.passes[currentMatch] = reason;
-  intentDrift[reason] = (intentDrift[reason] || 0) + 1;
-  updateIntentWeights();
-  closeDetail();
-}
-
-function updateIntentWeights() {
-  // After 3+ professional misses — surface more personal matches
-  // After 3+ personal misses — surface more professional matches
-  // This would feed into the real matching engine
-  console.log('Intent signals:', intentDrift);
-}
-
-// ── PROFILE CONSISTENCY CHECK ──
 async function checkProfileConsistency(name, found, built, open) {
-  if(!built || !found) return true; // not enough data
   const system = 'You check if a professional profile is internally consistent. Reply with just: CONSISTENT or INCONSISTENT and one sentence why.';
-  const prompt = `Profile: found for "${found}", built: "${built}", open to: "${open}". Is this internally consistent for a real professional?`;
+  const prompt = `Profile: found for "${found}", built: "${built}", open to: "${open}". Is this internally consistent?`;
   const result = await callClaude(system, prompt, 60);
   return !result.includes('INCONSISTENT');
 }
 
-function closeDetail() {
-  showScreen('app');
+function recordMiss(reason) {
+  implicitSignals.passes[currentMatch] = reason;
+  intentDrift[reason] = (intentDrift[reason]||0) + 1;
+  closeDetail();
 }
 
 // ── MESSAGES ──
+let conversations = {};
+
 function openMsg(name) {
   currentMatch = name;
-  document.getElementById('msg-title').textContent = `Say hello to ${name}`;
-  document.getElementById('msg-overlay').classList.add('open');
+  const el = document.getElementById('msg-title');
+  if (el) el.textContent = `Say hello to ${name}`;
+  const overlay = document.getElementById('msg-overlay');
+  if (overlay) overlay.classList.add('open');
 }
 
 function closeMsgOverlay(e) {
-  if(e.target === e.currentTarget) document.getElementById('msg-overlay').classList.remove('open');
+  if (e.target === e.currentTarget) {
+    const overlay = document.getElementById('msg-overlay');
+    if (overlay) overlay.classList.remove('open');
+  }
 }
-
-// Store conversations in memory
-let conversations = {};
 
 function sendMessage() {
   const btn = document.querySelector('.msg-send');
-  const text = document.getElementById('msg-text').value.trim();
-  if(!text) return;
+  const text = document.getElementById('msg-text')?.value.trim();
+  if (!text) return;
 
   const matchName = currentMatch;
   const matchData = currentMatchData;
-
-  // Store the conversation
-  if(!conversations[matchName]) {
-    conversations[matchName] = {
-      name: matchData.name || matchName,
-      role: matchData.role || '',
-      avatar: matchData.avatar || '🧑',
-      level: matchData.level || 'vibe',
-      messages: []
-    };
+  if (!conversations[matchName]) {
+    conversations[matchName] = { name: matchData.name||matchName, role: matchData.role||'', avatar: matchData.avatar||'🧑', level: matchData.level||'vibe', messages: [] };
   }
-  
-  conversations[matchName].messages.push({
-    from: 'me',
-    text: text,
-    time: 'Just now'
-  });
+  conversations[matchName].messages.push({ from:'me', text, time:'Just now' });
 
-  btn.textContent = '✓ Sent';
-  btn.style.background = '#00FFB2';
-  btn.style.color = '#000';
-  btn.disabled = true;
-
+  if (btn) { btn.textContent='✓ Sent'; btn.style.background='#00FFB2'; btn.style.color='#000'; btn.disabled=true; }
   setTimeout(() => {
-    document.getElementById('msg-overlay').classList.remove('open');
-    document.getElementById('msg-text').value = '';
-    btn.textContent = 'Send →';
-    btn.style.background = '';
-    btn.style.color = '';
-    btn.disabled = false;
-    
-    // Update messages tab
+    const overlay = document.getElementById('msg-overlay');
+    if (overlay) overlay.classList.remove('open');
+    const mt = document.getElementById('msg-text');
+    if (mt) mt.value = '';
+    if (btn) { btn.textContent='Send →'; btn.style.background=''; btn.style.color=''; btn.disabled=false; }
     updateMessagesTab();
-    
-    // Simulate a reply after 3 seconds
-    setTimeout(() => {
-      simulateReply(matchName, matchData);
-    }, 3000);
-    
+    setTimeout(() => simulateReply(matchName, matchData), 3000);
   }, 1000);
 }
 
 function updateMessagesTab() {
   const container = document.getElementById('conversations-list');
-  if(!container) return;
-  
-  container.innerHTML = '';
-  
-  Object.keys(conversations).forEach(key => {
-    const conv = conversations[key];
-    const lastMsg = conv.messages[conv.messages.length - 1];
-    const isUnread = lastMsg.from !== 'me';
-    
-    const levelColor = conv.level === 'chem' ? '#ff3cac' : conv.level === 'connect' ? '#00ccff' : '#00FFB2';
-    const levelLabel = conv.level === 'chem' ? '✦ Chemistry' : conv.level === 'connect' ? '● Connection' : '○ Vibe';
-    
-    container.innerHTML += `
-      <div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:0.85rem;cursor:pointer;" onclick="openConversation('${key}')">
-        <div style="padding:1.25rem 1.5rem;display:flex;gap:1rem;align-items:flex-start;">
-          <div style="width:44px;height:44px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;border:2px solid var(--line);">${conv.avatar}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem;">
-              <div style="font-size:0.88rem;font-weight:600;color:var(--white);">${conv.name}</div>
-              <div style="font-size:0.68rem;color:var(--muted);">${lastMsg.time}</div>
-            </div>
-            <div style="font-size:0.75rem;color:${levelColor};margin-bottom:0.3rem;font-weight:600;">${levelLabel}</div>
-            <div style="font-size:0.82rem;color:var(--muted);line-height:1.4;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${lastMsg.from === 'me' ? 'You: ' : ''}${lastMsg.text}</div>
-          </div>
-          ${isUnread ? '<div style="width:10px;height:10px;background:var(--vibe);border-radius:50%;flex-shrink:0;margin-top:0.4rem;"></div>' : ''}
-        </div>
-      </div>`;
-  });
-  
-  if(Object.keys(conversations).length === 0) {
-    container.innerHTML = `
-      <div style="text-align:center;padding:3rem 1rem;color:var(--muted);">
-        <div style="font-size:2rem;margin-bottom:1rem;">💬</div>
-        <div style="font-family:Fraunces,serif;font-size:1rem;color:var(--white);margin-bottom:0.5rem;">No conversations yet</div>
-        <div style="font-size:0.82rem;line-height:1.6;">Connect with a find to start a conversation.</div>
-      </div>`;
+  if (!container) return;
+  if (!Object.keys(conversations).length) {
+    container.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--muted);"><div style="font-size:2rem;margin-bottom:1rem;">💬</div><div style="font-family:Fraunces,serif;font-size:1rem;color:var(--white);margin-bottom:0.5rem;">No conversations yet</div><div style="font-size:0.82rem;line-height:1.6;">Connect with a find to start a conversation.</div></div>`;
+    return;
   }
+  container.innerHTML = Object.keys(conversations).map(key => {
+    const conv = conversations[key];
+    const lastMsg = conv.messages[conv.messages.length-1];
+    const isUnread = lastMsg.from !== 'me';
+    const levelColor = conv.level==='chem'?'#ff3cac':conv.level==='connect'?'#00ccff':'#00FFB2';
+    const levelLabel = conv.level==='chem'?'✦ Chemistry':conv.level==='connect'?'● Connection':'○ Vibe';
+    return `<div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:0.85rem;cursor:pointer;" onclick="openConversation('${key}')">
+      <div style="padding:1.25rem 1.5rem;display:flex;gap:1rem;align-items:flex-start;">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;border:2px solid var(--line);">${conv.avatar}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem;">
+            <div style="font-size:0.88rem;font-weight:600;color:var(--white);">${conv.name}</div>
+            <div style="font-size:0.68rem;color:var(--muted);">${lastMsg.time}</div>
+          </div>
+          <div style="font-size:0.75rem;color:${levelColor};margin-bottom:0.3rem;font-weight:600;">${levelLabel}</div>
+          <div style="font-size:0.82rem;color:var(--muted);line-height:1.4;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${lastMsg.from==='me'?'You: ':''}${lastMsg.text}</div>
+        </div>
+        ${isUnread?'<div style="width:10px;height:10px;background:var(--vibe);border-radius:50%;flex-shrink:0;margin-top:0.4rem;"></div>':''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function openConversation(key) {
   const conv = conversations[key];
-  if(!conv) return;
-  
-  // Show conversation thread
-  const overlay = document.getElementById('msg-overlay');
-  document.getElementById('msg-title').textContent = conv.name;
-  document.getElementById('msg-subtitle').textContent = conv.role;
-  document.getElementById('msg-text').value = '';
-  
-  // Update current match for reply context
+  if (!conv) return;
+  const el = document.getElementById('msg-title');
+  if (el) el.textContent = conv.name;
+  const sub = document.getElementById('msg-subtitle');
+  if (sub) sub.textContent = conv.role;
+  const mt = document.getElementById('msg-text');
+  if (mt) mt.value = '';
   currentMatch = key;
-  currentMatchData = { name: conv.name, role: conv.role, avatar: conv.avatar, level: conv.level };
-  
-  overlay.classList.add('open');
+  currentMatchData = { name:conv.name, role:conv.role, avatar:conv.avatar, level:conv.level };
+  const overlay = document.getElementById('msg-overlay');
+  if (overlay) overlay.classList.add('open');
 }
 
 async function simulateReply(matchName, matchData) {
-  if(!conversations[matchName]) return;
-  
-  // Generate AI reply
-  const myName = document.getElementById('yc-name').textContent || 'You';
-  const lastMsg = conversations[matchName].messages[conversations[matchName].messages.length - 1];
-  
-  const system = 'You are playing the role of a professional replying on Candid, a matching platform. Write a warm, genuine, brief reply (1-2 sentences) to a first message. Sound like a real person, not a bot.';
-  const prompt = `${matchData.name} (${matchData.role}) received this first message from ${myName}: "${lastMsg.text}". Write their natural reply.`;
-  
+  if (!conversations[matchName]) return;
+  const myName = document.getElementById('yc-name')?.textContent || 'You';
+  const lastMsg = conversations[matchName].messages[conversations[matchName].messages.length-1];
+  const system = 'You are playing the role of a professional replying on Candid. Write a warm, brief reply (1-2 sentences). Sound like a real person.';
+  const prompt = `${matchData.name} (${matchData.role}) received: "${lastMsg.text}" from ${myName}. Write their natural reply.`;
   const reply = await callClaude(system, prompt, 80);
-  
-  if(reply && conversations[matchName]) {
-    conversations[matchName].messages.push({
-      from: matchName,
-      text: reply,
-      time: 'Just now'
-    });
+  if (reply && conversations[matchName]) {
+    conversations[matchName].messages.push({ from:matchName, text:reply, time:'Just now' });
     updateMessagesTab();
-    
-    // Show notification dot on messages tab
     const msgNav = document.querySelector('#nav-messages .nav-label');
-    if(msgNav) {
-      msgNav.textContent = 'Messages ●';
-      msgNav.style.color = 'var(--vibe)';
-    }
+    if (msgNav) { msgNav.textContent='Messages ●'; msgNav.style.color='var(--vibe)'; }
   }
-}
-
-// ── TAB SWITCHING ──
-function switchTab(tab, btn) {
-  // Hide app content panels, show right screen
-  if(tab === 'finds') {
-    showScreen('app');
-  } else if(tab === 'messages') {
-    showScreen('screen-messages');
-    // sync You tab data
-  } else if(tab === 'you') {
-    showScreen('screen-you');
-    loadYouTab();
-  }
-}
-
-// ── STEP 4 CHECK ──
-function checkStep4() {
-  const email = document.getElementById('input-email').value.trim();
-  const pass = document.getElementById('input-password').value.trim();
-  document.getElementById('step4-next').disabled = !(email && pass.length >= 8);
-}
-
-// ── YOU TAB LOAD ──
-async function loadYouTab() {
-  if (!_session) return;
-  const profile = await supaGetProfile(_session.access_token);
-  if (!profile) return;
-
-  document.getElementById('you-name').textContent = profile.name || '—';
-  document.getElementById('you-role').textContent = profile.tagline || '—';
-  document.getElementById('you-link').textContent = profile.candid_link || '—';
-  document.getElementById('edit-tagline').value = profile.tagline || '';
-  document.getElementById('edit-focus').value = profile.current_focus || '';
-  document.getElementById('edit-achievement').value = profile.achievement || '';
-  document.getElementById('edit-open-to').value = profile.open_to || '';
-
-  // Photo
-  if (profile.photo_url) {
-    const el = document.getElementById('profile-photo-display');
-    el.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-  }
-
-  // Anon toggle
-  const toggle = document.getElementById('you-anon-toggle');
-  if (toggle) toggle.classList.toggle('off', !profile.anonymous_mode);
-
-  previewTrustSignal();
-}
-
-function previewTrustSignal() {
-  const tagline = document.getElementById('edit-tagline')?.value || '';
-  const achievement = document.getElementById('edit-achievement')?.value || '';
-  const open_to = document.getElementById('edit-open-to')?.value || '';
-  const anon = document.getElementById('you-anon-toggle')?.classList.contains('off');
-  const profile = { tagline, achievement, open_to, anonymous_mode: anon, vibe_tags: [] };
-  const { legibilityLit, suspensionLit, resonanceLit } = calcTrustSignal(profile);
-
-  const lEl = document.getElementById('ts-you-legibility');
-  const sEl = document.getElementById('ts-you-suspension');
-  const rEl = document.getElementById('ts-you-resonance');
-  if (lEl) { lEl.className = 'ts-bar' + (legibilityLit ? ' lit-legibility' : ''); }
-  if (sEl) { sEl.className = 'ts-bar' + (suspensionLit ? ' lit-suspension' : ''); }
-  if (rEl) { rEl.className = 'ts-bar' + (resonanceLit ? ' lit-resonance' : ''); }
-
-  const hints = [];
-  if (!legibilityLit) hints.push('Add a specific tagline and achievement to improve Legibility');
-  if (!suspensionLit) hints.push('Turn off anonymous mode and add vibes to improve Suspension');
-  const hintEl = document.getElementById('ts-you-hint');
-  if (hintEl) hintEl.textContent = hints[0] || 'Your Trust Signal is strong.';
-}
-
-async function saveProfile() {
-  const btn = document.getElementById('save-profile-btn');
-  btn.textContent = 'Saving…'; btn.disabled = true;
-
-  const token = _session?.access_token;
-  const userId = JSON.parse(atob(token.split('.')[1])).sub;
-  const tagline = document.getElementById('edit-tagline').value.trim();
-  const focus = document.getElementById('edit-focus').value.trim();
-  const achievement = document.getElementById('edit-achievement').value.trim();
-  const open_to = document.getElementById('edit-open-to').value.trim();
-
-  await supaUpsertProfile({ id: userId, tagline, current_focus: focus, achievement, open_to }, token);
-
-  document.getElementById('you-role').textContent = tagline;
-  document.getElementById('yc-role').textContent = tagline;
-  document.getElementById('yc-name') && (document.getElementById('you-name').textContent = document.getElementById('yc-name').textContent);
-
-  previewTrustSignal();
-  btn.textContent = 'Saved ✓'; btn.disabled = false;
-  setTimeout(() => { btn.textContent = 'Save'; }, 2000);
-}
-
-async function handlePhotoUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  const token = _session?.access_token;
-  const userId = JSON.parse(atob(token.split('.')[1])).sub;
-
-  // Convert to base64 data URL for display
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const dataUrl = e.target.result;
-    const el = document.getElementById('profile-photo-display');
-    el.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-
-    // Upload to Supabase Storage
-    const ext = file.name.split('.').pop();
-    const path = `${userId}/avatar.${ext}`;
-    const uploadRes = await fetch(`${SUPA_URL}/storage/v1/object/avatars/${path}`, {
-      method: 'POST',
-      headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': file.type, 'x-upsert': 'true' },
-      body: file
-    });
-
-    if (uploadRes.ok) {
-      const photo_url = `${SUPA_URL}/storage/v1/object/public/avatars/${path}`;
-      await supaUpsertProfile({ id: userId, photo_url }, token);
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-// ── YOU TAB ANON ──
-function toggleAnonYou() {
-  anonOn = !anonOn;
-  const t1 = document.getElementById('anon-toggle');
-  const t2 = document.getElementById('you-anon-toggle');
-  if(t1) t1.classList.toggle('off', !anonOn);
-  if(t2) t2.classList.toggle('off', !anonOn);
 }
 
 // ── COPY LINK ──
 function copyYourLink(btn) {
-  navigator.clipboard.writeText('https://candid.so/rachelhor').then(() => {
-    btn.textContent = '✓ Copied';
-    setTimeout(() => btn.textContent = 'Copy link', 2000);
-  }).catch(() => {
-    btn.textContent = '✓ Copied';
-    setTimeout(() => btn.textContent = 'Copy link', 2000);
-  });
+  const link = document.getElementById('you-link')?.textContent || 'candid.so/';
+  navigator.clipboard.writeText('https://'+link).then(() => {
+    btn.textContent='✓ Copied';
+    setTimeout(() => btn.textContent='Copy link', 2000);
+  }).catch(() => { btn.textContent='✓ Copied'; setTimeout(()=>btn.textContent='Copy link',2000); });
 }
 </script>
 </body>
