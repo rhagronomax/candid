@@ -1823,9 +1823,10 @@ function populateUI(profile) {
   if (el('yc-role')) el('yc-role').textContent = tagline;
   if (el('you-name')) el('you-name').textContent = name;
   if (el('you-role')) el('you-role').textContent = tagline;
-  if (profile.photo_url) {
-    const photoEl = el('profile-photo-display');
-    if (photoEl) photoEl.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  const photoEl = el('profile-photo-display');
+  if (photoEl) photoEl.innerHTML = '🧑‍💼';
+  if (profile.photo_url && photoEl) {
+    photoEl.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
   }
 }
 
@@ -1924,6 +1925,9 @@ function signOut() {
   conversations = {};
   currentRecipientId = null;
   localStorage.removeItem('candid_session');
+  // Clear photo display
+  const photoEl = document.getElementById('profile-photo-display');
+  if (photoEl) photoEl.innerHTML = '🧑‍💼';
   showScreen('splash');
 }
 
