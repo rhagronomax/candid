@@ -1723,6 +1723,10 @@ function authHeaders() {
   return {'Content-Type':'application/json','Authorization':'Bearer '+(_session?.access_token||'')};
 }
 
+function _myUserId() {
+  try { return JSON.parse(atob(_session.access_token.split('.')[1])).sub; } catch { return null; }
+}
+
 // ── UI HELPERS ──
 function populateUI(profile) {
   if (!profile) return;
