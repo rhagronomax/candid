@@ -2027,7 +2027,7 @@ async function loadRealMatches() {
         ${trust}
         <div class="match-card-bottom">
           <div class="match-tags">${tagsHtml}</div>
-          <button class="match-connect-btn" onclick="event.stopPropagation();_currentRecipientId='${matchedUid}';openMsg('${safeArgs[0]}')">Connect</button>
+          <button class="match-connect-btn" onclick="event.stopPropagation();_currentRecipientId='${matchedUid}';currentMatchData={name:'${safeArgs[0]}',role:'${safeArgs[1]}',level:'${safeArgs[2]}',avatar:'${safeArgs[3]}',id:'${matchedUid}',matchId:'${safeArgs[10]}'};openMsg('${safeArgs[0]}')">Connect</button>
         </div>
       </div>`;
     }).join('');
@@ -2329,13 +2329,18 @@ let conversations = {}; // keyed by partnerId for the in-session cache
 let _currentRecipientId = null; // actual UUID of who we're messaging
 
 function openMsg(name) {
-  // Try to find the recipient id from the loaded matches
-  const matchCard = [...document.querySelectorAll('.match-card')].find(c =>
-    c.textContent.includes(name)
-  );
   currentMatch = name;
+  // Look up full match data from the card that has this uid
+  const card = document.querySelector(`.match-card[data-uid="${_currentRecipientId}"]`);
+  if (card) {
+    // currentMatchData was already set by openMatch or the Connect button onclick
+    // Just update the title correctly
+  }
+  const displayName = currentMatchData?.name || name;
   const el = document.getElementById('msg-title');
-  if (el) el.textContent = `Say hello to ${name}`;
+  if (el) el.textContent = `Say hello to ${displayName}`;
+  const sub = document.getElementById('msg-subtitle');
+  if (sub) sub.textContent = "They'll see your Candid profile when they receive this. Keep it real — no pitches.";
   const overlay = document.getElementById('msg-overlay');
   if (overlay) overlay.classList.add('open');
 }
@@ -2383,10 +2388,12 @@ async function sendMessage() {
       body: JSON.stringify({ type: 'new_message', recipientId, senderName: myName })
     }).catch(() => {});
 
-    if (!conversations[matchName]) {
-      conversations[matchName] = { name: matchData.name||matchName, role: matchData.role||'', avatar: matchData.avatar||'🧑', level: matchData.level||'vibe', messages: [], id: recipientId };
+    // Key conversations by recipientId for DB sync
+    const convKey = recipientId;
+    if (!conversations[convKey]) {
+      conversations[convKey] = { name: matchData.name||matchName, role: matchData.role||'', avatar: matchData.avatar||'🧑', level: matchData.level||'vibe', messages: [], id: recipientId };
     }
-    conversations[matchName].messages.push({ from:'me', text, time:'Just now' });
+    conversations[convKey].messages.push({ from:'me', text, time:'Just now' });
 
     btn.textContent = '✓ Sent'; btn.style.background = '#00FFB2'; btn.style.color = '#000';
     showToast('Message sent', 'success');
@@ -2441,15 +2448,16 @@ async function loadMessages() {
       const prof = Array.isArray(profs) ? profs[0] : null;
       const name = prof ? (prof.anonymous_mode ? 'Anonymous' : prof.name) : 'Someone';
       const role = prof?.tagline || '';
-      if (!conversations[name]) {
-        conversations[name] = { name, role, avatar: '🧑', level: 'vibe', messages: [], id: partnerId };
+      // Key by partnerId UUID for consistency with sendMessage
+      if (!conversations[partnerId]) {
+        conversations[partnerId] = { name, role, avatar: '🧑', level: 'vibe', messages: [], id: partnerId };
       }
-      conversations[name].messages = [{
+      conversations[partnerId].messages = [{
         from: thread.sender_id === _myUserId() ? 'me' : name,
         text: thread.body,
         time: new Date(thread.created_at).toLocaleDateString()
       }];
-      conversations[name].unread = thread.read === false && thread.sender_id !== _myUserId() ? 1 : 0;
+      conversations[partnerId].unread = thread.read === false && thread.sender_id !== _myUserId() ? 1 : 0;
     }
     updateMessagesTab();
 
