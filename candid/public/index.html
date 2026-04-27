@@ -1800,7 +1800,7 @@ async function doSignIn() {
     showScreen('app');
     checkFilterVisibility();
     loadRealMatches();
-    loadMessages();
+    setTimeout(loadMessages, 2000); // load after matches settle
   } catch(e) {
     console.log('signin error:', e.message, e.stack);
     if (errEl) { errEl.textContent = e.message || 'Sign in failed'; errEl.style.display = 'block'; }
