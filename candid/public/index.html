@@ -1810,7 +1810,7 @@ function showError(id, msg) {
     showScreen('app');
     checkFilterVisibility();
     loadRealMatches();
-    loadMessages(); // Pre-load messages so badge shows
+    setTimeout(() => { if(typeof loadMessages === 'function') loadMessages(); }, 1500);
   } catch(e) { console.log('init error:', e.message); localStorage.removeItem('candid_session'); }
 })();
 
