@@ -1738,12 +1738,6 @@ function populateUI(profile) {
     const photoEl = el('profile-photo-display');
     if (photoEl) photoEl.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
   }
-  // Load edit fields
-  if (el('edit-tagline')) el('edit-tagline').value = profile.tagline || '';
-  if (el('edit-focus')) el('edit-focus').value = profile.current_focus || '';
-  if (el('edit-achievement')) el('edit-achievement').value = profile.achievement || '';
-  if (el('edit-open-to')) el('edit-open-to').value = profile.open_to || '';
-  if (el('you-link')) el('you-link').textContent = profile.candid_link || '';
 }
 
 function showScreen(id) {
@@ -2175,7 +2169,8 @@ function openMatch(name, role, level, avatar, why, vibes, tags, built, open) {
   document.getElementById('starter-loading').style.display = 'none';
 
   showScreen('match-detail');
-  setTimeout(generateStarter, 1500);
+  if (window._starterTimer) clearTimeout(window._starterTimer);
+  window._starterTimer = setTimeout(generateStarter, 1500);
 }
 
 function closeDetail() { showScreen('app'); }
