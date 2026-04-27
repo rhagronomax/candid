@@ -47,7 +47,7 @@ export default async (req) => {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01" },
           body: JSON.stringify({
-            model: "claude-sonnet-4-20250514", max_tokens: 150,
+            model: "claude-sonnet-4-5", max_tokens: 150,
             messages: [{ role: "user", content: `Match reason (max 20 words) + type (chemistry/connection/vibe) for:\nA: ${myProfile.name}, ${myProfile.tagline}\nB: ${candidate.name}, ${candidate.tagline}\nJSON only: {"reason":"...","type":"..."}` }]
           })
         });
@@ -75,7 +75,7 @@ export default async (req) => {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01" },
             body: JSON.stringify({
-              model: "claude-sonnet-4-20250514", max_tokens: 150,
+              model: "claude-sonnet-4-5", max_tokens: 150,
               messages: [{ role: "user", content: `Match reason (max 20 words) + type (chemistry/connection/vibe) for:\nA: ${candidate.name}, ${candidate.tagline}\nB: ${myProfile.name}, ${myProfile.tagline}\nJSON only: {"reason":"...","type":"..."}` }]
             })
           });
