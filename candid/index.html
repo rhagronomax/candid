@@ -946,7 +946,7 @@ html, body {
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
   display: flex;
-  padding: 0.75rem 0 1rem;
+  padding: 0.75rem 0 max(1rem, env(safe-area-inset-bottom));
   z-index: 100;
 }
 
@@ -1063,9 +1063,92 @@ html, body {
 .slide-up { animation: slideUp 0.5s ease forwards; }
 
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* Toast notifications */
+#toast-container {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+  width: calc(100% - 3rem);
+  max-width: 380px;
+}
+
+.toast {
+  background: var(--warm);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.82rem;
+  color: var(--white);
+  line-height: 1.5;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: toastIn 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.toast.success { border-color: rgba(0,255,178,0.3); }
+.toast.error { border-color: rgba(255,60,172,0.3); }
+
+@keyframes toastIn {
+  from { opacity:0; transform:translateY(-8px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* Password toggle */
+.pw-wrap { position: relative; }
+.pw-wrap .field-input { padding-right: 3rem; }
+.pw-toggle {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.25rem;
+}
+
+/* "Updated" timestamp */
+.update-time {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+/* Skeleton loader for match cards */
+.skeleton-card {
+  background: var(--warm);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.skeleton-line {
+  background: linear-gradient(90deg, var(--line) 25%, var(--sand) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+  height: 12px;
+  margin-bottom: 0.6rem;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* Improved section header timestamp */
+#finds-updated { font-size:0.68rem; color:var(--muted); }
 </style>
 </head>
 <body>
+
+<div id="toast-container"></div>
 
 <!-- ═══════ SPLASH ═══════ -->
 <div class="screen active" id="splash">
@@ -1244,7 +1327,10 @@ html, body {
       </div>
       <div class="field">
         <div class="field-label">Create a password</div>
-        <input class="field-input" type="password" placeholder="At least 8 characters" id="input-password" oninput="checkStep4()">
+        <div class="pw-wrap">
+          <input class="field-input" type="password" placeholder="At least 8 characters" id="input-password" oninput="checkStep4()" autocomplete="new-password">
+          <button type="button" class="pw-toggle" onclick="togglePw('input-password',this)">Show</button>
+        </div>
       </div>
       <div style="background:var(--warm);border:1px solid var(--line);border-radius:12px;padding:1rem 1.25rem;">
         <div style="font-size:0.75rem;color:var(--body);line-height:1.65;">
@@ -1273,19 +1359,19 @@ html, body {
   <div style="padding:1.5rem 1.5rem 0;">
     <div class="your-card">
       <div class="yc-label">Your Candid Identity</div>
-      <div class="yc-name" id="yc-name">Rachel Hor</div>
-      <div class="yc-role" id="yc-role">The Trust Ecologist™</div>
+      <div class="yc-name" id="yc-name">—</div>
+      <div class="yc-role" id="yc-role">—</div>
       <div class="yc-stats">
         <div>
-          <div class="yc-stat-n">3</div>
+          <div class="yc-stat-n" id="yc-stat-finds">0</div>
           <div class="yc-stat-l">New finds</div>
         </div>
         <div>
-          <div class="yc-stat-n">12</div>
+          <div class="yc-stat-n" id="yc-stat-viewed">—</div>
           <div class="yc-stat-l">Viewed you</div>
         </div>
         <div>
-          <div class="yc-stat-n">1</div>
+          <div class="yc-stat-n" id="yc-stat-chem">0</div>
           <div class="yc-stat-l">Chemistry</div>
         </div>
       </div>
@@ -1295,7 +1381,7 @@ html, body {
   <!-- Anonymous toggle -->
   <div class="section-hd" style="padding-top:1.5rem;">
     <h2>Your finds</h2>
-    <div class="section-hd-sub">Updated just now</div>
+    <div class="section-hd-sub" id="finds-updated">Loading…</div>
   </div>
 
   <div class="anon-notice">
@@ -1318,95 +1404,14 @@ html, body {
 
   <!-- Match cards -->
   <div class="matches-list" id="matches-list">
-
-    <div class="match-card slide-up" data-level="chem" onclick="openMatch('Amara Kone','AI Ethics Researcher · Geneva','chem','🧑‍🔬','Both of you are building frameworks for AI accountability in high-stakes decisions. Her research on algorithmic fairness in healthcare directly intersects with your triadic trust model. Rare overlap.','Direct, Deep thinker, Global',['AI ethics','Research','Healthcare AI','Geneva'],'Published the first algorithmic fairness audit framework adopted by three European health ministries','Research collaboration, co-authorship, intellectual exchange, genuine friendship across time zones')">
-      <div class="match-card-top">
-        <div class="match-avatar">🧑‍🔬</div>
-        <div class="match-info">
-          <div class="match-name-row">
-            <div class="match-name">Amara Kone</div>
-            <div class="match-level ml-chem">✦ Chemistry</div>
-          </div>
-          <div class="match-role">AI Ethics Researcher · Geneva</div>
-          <div class="match-why">"Both building frameworks for AI accountability — your triadic model meets her algorithmic fairness work."</div>
-        </div>
+    <div id="matches-loading" style="padding:2rem 0;text-align:center;">
+      <div style="display:inline-flex;gap:5px;align-items:center;">
+        <span style="width:7px;height:7px;background:var(--vibe);border-radius:50%;animation:pulse 1.2s ease-in-out infinite;display:inline-block;"></span>
+        <span style="width:7px;height:7px;background:var(--vibe);border-radius:50%;animation:pulse 1.2s ease-in-out infinite;animation-delay:0.2s;display:inline-block;"></span>
+        <span style="width:7px;height:7px;background:var(--vibe);border-radius:50%;animation:pulse 1.2s ease-in-out infinite;animation-delay:0.4s;display:inline-block;"></span>
       </div>
-      <div class="match-card-bottom">
-        <div class="match-tags">
-          <span class="match-tag">AI ethics</span>
-          <span class="match-tag">Research</span>
-          <span class="match-tag">Global</span>
-        </div>
-        <button class="match-connect-btn" onclick="event.stopPropagation();openMsg('Amara')">Connect</button>
-      </div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:0.75rem;">Finding your people…</div>
     </div>
-
-    <div class="match-card slide-up" style="animation-delay:0.1s;" data-level="connect" onclick="openMatch('Marcus Tran','Insurtech Founder · Singapore','connect','👨‍💼','You both understand the gap between how AI is sold to insurers and how it actually performs in the field. He\'s looking for an advisor who has lived inside that gap. You have.','Builder, Ambitious, Direct',['Insurtech','Singapore','Founder','Insurance AI'])">
-      <div class="match-card-top">
-        <div class="match-avatar">👨‍💼</div>
-        <div class="match-info">
-          <div class="match-name-row">
-            <div class="match-name">Marcus Tran</div>
-            <div class="match-level ml-connect">● Connection</div>
-          </div>
-          <div class="match-role">Insurtech Founder · Singapore</div>
-          <div class="match-why">"He's looking for someone who has lived inside the AI-insurance gap. You have — for 20 years."</div>
-        </div>
-      </div>
-      <div class="match-card-bottom">
-        <div class="match-tags">
-          <span class="match-tag">Insurtech</span>
-          <span class="match-tag">Singapore</span>
-          <span class="match-tag">Founder</span>
-        </div>
-        <button class="match-connect-btn" onclick="event.stopPropagation();openMsg('Marcus')">Connect</button>
-      </div>
-    </div>
-
-    <div class="match-card slide-up" style="animation-delay:0.2s;" data-level="connect" onclick="openMatch('Priya Sharma','Head of AI Governance · KPMG Toronto','connect','👩‍💼','She is building KPMG\'s AI governance practice in Canada and needs someone who can translate academic rigour into client-facing frameworks. Your TEF is exactly that instrument.','Analytical, Ambitious, Grounded',['KPMG','AI Governance','Toronto','Consulting'])">
-      <div class="match-card-top">
-        <div class="match-avatar">👩‍💼</div>
-        <div class="match-info">
-          <div class="match-name-row">
-            <div class="match-name">Priya Sharma</div>
-            <div class="match-level ml-connect">● Connection</div>
-          </div>
-          <div class="match-role">Head of AI Governance · KPMG Toronto</div>
-          <div class="match-why">"Building KPMG's Canadian AI governance practice. Needs someone who can translate research into client frameworks."</div>
-        </div>
-      </div>
-      <div class="match-card-bottom">
-        <div class="match-tags">
-          <span class="match-tag">KPMG</span>
-          <span class="match-tag">AI Governance</span>
-          <span class="match-tag">Toronto</span>
-        </div>
-        <button class="match-connect-btn" onclick="event.stopPropagation();openMsg('Priya')">Connect</button>
-      </div>
-    </div>
-
-    <div class="match-card slide-up" style="animation-delay:0.3s;" data-level="vibe" onclick="openMatch('Daniel Park','Digital Transformation Lead · Hanoi','vibe','👨‍💻','Shared frustration with how AI gets deployed in financial services without adequate governance. He is mid-transition, thoughtful, and looking for intellectual peers as much as colleagues.','Curious, Restless, Global',['Vietnam','Fintech','Digital transformation','Hanoi'],'Led VPBank digital transformation — 3M customers migrated to new platform in 18 months','Conversation with peers navigating similar transitions. Collaboration. Possibly more.')">
-      <div class="match-card-top">
-        <div class="match-avatar">👨‍💻</div>
-        <div class="match-info">
-          <div class="match-name-row">
-            <div class="match-name">Daniel Park</div>
-            <div class="match-level ml-vibe">○ Vibe</div>
-          </div>
-          <div class="match-role">Digital Transformation Lead · Hanoi</div>
-          <div class="match-why">"Shared frustration with AI deployment in financial services without governance. Thoughtful, mid-transition."</div>
-        </div>
-      </div>
-      <div class="match-card-bottom">
-        <div class="match-tags">
-          <span class="match-tag">Vietnam</span>
-          <span class="match-tag">Fintech</span>
-          <span class="match-tag">Hanoi</span>
-        </div>
-        <button class="match-connect-btn" onclick="event.stopPropagation();openMsg('Daniel')">Connect</button>
-      </div>
-    </div>
-
   </div>
 
   <div style="height:2rem;"></div>
@@ -1418,7 +1423,7 @@ html, body {
       <div class="nav-label">Finds</div>
     </div>
     <div class="nav-item" id="nav-messages" onclick="switchTab('messages',this)">
-      <div class="nav-icon">💬</div>
+      <div class="nav-icon" style="position:relative;">💬<span id="msg-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:var(--chem);color:white;font-size:0.5rem;font-weight:700;border-radius:100px;padding:1px 4px;min-width:14px;text-align:center;"></span></div>
       <div class="nav-label">Messages</div>
     </div>
     <div class="nav-item" id="nav-you" onclick="switchTab('you',this)">
@@ -1566,8 +1571,11 @@ html, body {
     <div style="font-size:0.82rem;color:var(--muted);margin-bottom:2rem;">Sign in to your Candid account.</div>
     <div id="signin-err" style="display:none;background:rgba(255,60,172,0.1);color:#ff3cac;border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;margin-bottom:1rem;"></div>
     <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1.5rem;">
-      <input class="field-input" type="email" placeholder="your@email.com" id="si-email">
-      <input class="field-input" type="password" placeholder="Password" id="si-password">
+      <input class="field-input" type="email" placeholder="your@email.com" id="si-email" autocomplete="email">
+      <div class="pw-wrap">
+        <input class="field-input" type="password" placeholder="Password" id="si-password" autocomplete="current-password">
+        <button type="button" class="pw-toggle" onclick="togglePw('si-password',this)">Show</button>
+      </div>
     </div>
     <button onclick="doSignIn()" id="si-btn" style="width:100%;background:var(--vibe);color:var(--ink);border:none;border-radius:100px;padding:1rem;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;box-shadow:0 0 20px rgba(0,255,178,0.25);transition:all 0.2s;">Sign in →</button>
     <div style="text-align:center;margin-top:1rem;font-size:0.78rem;color:var(--muted);">No account? <span style="color:var(--vibe);font-weight:600;cursor:pointer;" onclick="startOnboarding()">Get started</span></div>
@@ -1811,7 +1819,7 @@ async function launchApp() {
     const signupData = await supaSignUp(email, password);
     if (signupData.error || signupData.error_description || signupData.msg) {
       btn.disabled = false; btn.textContent = 'Find my matches →';
-      alert(signupData.msg || signupData.error_description || signupData.error); return;
+      showToast(signupData.msg || signupData.error_description || signupData.error, 'error'); return;
     }
 
     // Get token — from signup response or separate signin
@@ -1822,7 +1830,7 @@ async function launchApp() {
       const signinData = await supaSignIn(email, password);
       if (signinData.error || signinData.error_description) {
         btn.disabled = false; btn.textContent = 'Find my matches →';
-        alert(signinData.error_description || signinData.error); return;
+        showToast(signinData.error_description || signinData.error, 'error'); return;
       }
       accessToken = signinData.access_token || signinData.session?.access_token;
       refreshToken = signinData.refresh_token || signinData.session?.refresh_token;
@@ -1830,7 +1838,7 @@ async function launchApp() {
 
     if (!accessToken) {
       btn.disabled = false; btn.textContent = 'Find my matches →';
-      alert('Could not get session. Please try signing in.'); return;
+      showToast('Could not get session. Please try signing in.', 'error'); return;
     }
 
     _session = { access_token: accessToken, refresh_token: refreshToken };
@@ -1855,13 +1863,37 @@ async function launchApp() {
 
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Find my matches →';
-    alert(e.message || 'Something went wrong');
+    showToast(e.message || 'Something went wrong', 'error');
   }
 }
 
 // ── SPLASH ──
 function startOnboarding() { showScreen('onboarding'); }
 function skipToApp() { showScreen('screen-signin'); }
+
+// ── UTILITIES ──
+function showToast(msg, type='success') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span style="font-weight:700;color:${type==='success'?'var(--vibe)':type==='error'?'var(--chem)':'var(--connect)'};">${icon}</span> ${msg}`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.3s'; setTimeout(()=>toast.remove(), 300); }, 3000);
+}
+
+function togglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  btn.textContent = isHidden ? 'Hide' : 'Show';
+}
+
+function trackConnect() {
+  // Future: log connect intent to DB for analytics
+}
 
 // ── ONBOARDING ──
 function selectMode(el, mode) {
@@ -1905,7 +1937,24 @@ async function loadRealMatches() {
   try {
     const res = await fetch('/api/matches', { headers: authHeaders() });
     const matches = await res.json();
-    if (!Array.isArray(matches) || !matches.length) return;
+
+    // Hide loading spinner
+    const loadingEl = document.getElementById('matches-loading');
+    if (loadingEl) loadingEl.remove();
+
+    // Update timestamp
+    const updatedEl = document.getElementById('finds-updated');
+    if (updatedEl) updatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+
+    if (!Array.isArray(matches) || !matches.length) {
+      const list = document.getElementById('matches-list');
+      if (list) list.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--muted);">
+        <div style="font-size:2rem;margin-bottom:1rem;">✦</div>
+        <div style="font-family:Fraunces,serif;font-size:1rem;color:var(--white);margin-bottom:0.5rem;">No finds yet</div>
+        <div style="font-size:0.82rem;line-height:1.6;">Candid is looking for your people. Check back soon.</div>
+      </div>`;
+      return;
+    }
 
     const EMOJIS = ['🧑‍🔬','👨‍💼','👩‍💼','👨‍💻','🧑‍🎨','👩‍🔬','🧑‍💼','👨‍🎨'];
     const levelMap = { chemistry:'chem', connection:'connect', vibe:'vibe' };
@@ -1949,11 +1998,13 @@ async function loadRealMatches() {
       </div>`;
     }).join('');
 
+    // Update real stats
     const chemCount = matches.filter(m => m.match_type==='chemistry').length;
-    document.querySelectorAll('.yc-stat-n').forEach((el,i) => {
-      if (i===0) el.textContent = matches.length;
-      if (i===2) el.textContent = chemCount;
-    });
+    const findsEl = document.getElementById('yc-stat-finds');
+    const chemEl = document.getElementById('yc-stat-chem');
+    if (findsEl) findsEl.textContent = matches.length;
+    if (chemEl) chemEl.textContent = chemCount;
+
     checkFilterVisibility();
   } catch(e) { console.log('Match load error:', e.message); }
 }
@@ -2052,6 +2103,7 @@ async function saveProfile() {
     if (el('you-role')) el('you-role').textContent = tagline;
     previewTrustSignal();
     if (btn) { btn.textContent = 'Saved ✓'; btn.disabled = false; setTimeout(()=>{ btn.textContent='Save'; },2000); }
+    showToast('Profile updated', 'success');
   } catch(e) {
     if (btn) { btn.textContent = 'Error'; btn.disabled = false; }
   }
@@ -2114,7 +2166,13 @@ function switchTab(tab, btn) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (btn) btn.classList.add('active');
   if (tab==='finds') { showScreen('app'); }
-  else if (tab==='messages') { showScreen('screen-messages'); loadMessages(); }
+  else if (tab==='messages') {
+    showScreen('screen-messages');
+    loadMessages();
+    // Clear badge
+    const badge = document.getElementById('msg-badge');
+    if (badge) { badge.style.display='none'; badge.textContent=''; }
+  }
   else if (tab==='you') { showScreen('screen-you'); loadYouTab(); }
 }
 
@@ -2269,6 +2327,7 @@ async function sendMessage() {
     conversations[matchName].messages.push({ from:'me', text, time:'Just now' });
 
     btn.textContent = '✓ Sent'; btn.style.background = '#00FFB2'; btn.style.color = '#000';
+    showToast('Message sent', 'success');
     setTimeout(() => {
       const overlay = document.getElementById('msg-overlay');
       if (overlay) overlay.classList.remove('open');
@@ -2331,6 +2390,14 @@ async function loadMessages() {
       conversations[name].unread = thread.read === false && thread.sender_id !== _myUserId() ? 1 : 0;
     }
     updateMessagesTab();
+
+    // Update unread badge
+    const totalUnread = Object.values(conversations).reduce((sum, c) => sum + (c.unread||0), 0);
+    const badge = document.getElementById('msg-badge');
+    if (badge) {
+      badge.textContent = totalUnread > 0 ? totalUnread : '';
+      badge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+    }
   } catch(e) { console.log('loadMessages error', e.message); }
 }
 
