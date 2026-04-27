@@ -2490,13 +2490,16 @@ async function saveProfile() {
   try {
     const uid = myUserId();
     const el = id => document.getElementById(id);
+    const name = el('edit-name')?.value.trim()||'';
+    const candid_link = 'candid.so/'+name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'');
     const { id: _id, ...body } = {
       id: uid,
-      name: el('edit-name')?.value.trim()||'',
+      name,
       tagline: el('edit-tagline')?.value.trim()||'',
       current_focus: el('edit-focus')?.value.trim()||'',
       achievement: el('edit-achievement')?.value.trim()||'',
-      open_to: el('edit-open-to')?.value.trim()||''
+      open_to: el('edit-open-to')?.value.trim()||'',
+      candid_link
     };
     await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}`, {
       method:'PATCH',
@@ -2507,6 +2510,7 @@ async function saveProfile() {
     if (el('yc-role')) el('yc-role').textContent = body.tagline;
     if (el('you-name')) el('you-name').textContent = body.name || '—';
     if (el('you-role')) el('you-role').textContent = body.tagline;
+    if (el('you-link')) el('you-link').textContent = candid_link;
     previewTrustSignal();
     if (btn) { btn.textContent='Saved ✓'; btn.disabled=false; setTimeout(()=>{btn.textContent='Save';},2000); }
     showToast('Profile updated', 'success');
