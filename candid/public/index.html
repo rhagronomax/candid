@@ -2206,7 +2206,11 @@ async function handlePhotoUpload(input) {
       });
       if (uploadRes.ok) {
         const photo_url = `${SUPA_URL}/storage/v1/object/public/avatars/${path}`;
-        await supaUpsertProfile({ id: uid, photo_url }, _session.access_token);
+        await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}`, {
+          method: 'PATCH',
+          headers: {'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token},
+          body: JSON.stringify({photo_url})
+        });
       }
     } catch(e) { console.log('Photo upload error:', e.message); }
   };
