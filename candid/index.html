@@ -2514,21 +2514,8 @@ function openConversation(key) {
   if (overlay) overlay.classList.add('open');
 }
 
-async function simulateReply(matchName, matchData) {
-  // Only simulate if no real recipient ID (demo mode)
-  if (_currentRecipientId) return;
-  if (!conversations[matchName]) return;
-  const myName = document.getElementById('yc-name')?.textContent || 'You';
-  const lastMsg = conversations[matchName].messages[conversations[matchName].messages.length-1];
-  const system = 'You are playing the role of a professional replying on Candid. Write a warm, brief reply (1-2 sentences). Sound like a real person.';
-  const prompt = `${matchData.name} (${matchData.role}) received: "${lastMsg.text}" from ${myName}. Write their natural reply.`;
-  const reply = await callClaude(system, prompt, 80);
-  if (reply && conversations[matchName]) {
-    conversations[matchName].messages.push({ from:matchName, text:reply, time:'Just now' });
-    updateMessagesTab();
-    const msgNav = document.querySelector('#nav-messages .nav-label');
-    if (msgNav) { msgNav.textContent='Messages ●'; msgNav.style.color='var(--vibe)'; }
-  }
+async function simulateReply() {
+  // Disabled — real users only, no simulated replies
 }
 
 // ── AI ONBOARDING CONVERSATION ──
