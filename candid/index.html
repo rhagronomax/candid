@@ -1709,7 +1709,7 @@ async function supaGetProfile(token) {
 
 async function supaUpsertProfile(profile, token) {
   const uid = profile.id;
-  // Use PATCH to update existing row — POST upsert requires service key
+  const { id, ...body } = profile; // strip id from body — can't PATCH primary key
   const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}`, {
     method: 'PATCH',
     headers: {
@@ -1718,9 +1718,8 @@ async function supaUpsertProfile(profile, token) {
       'Authorization': 'Bearer ' + token,
       'Prefer': 'return=representation'
     },
-    body: JSON.stringify(profile)
+    body: JSON.stringify(body)
   });
-  // If PATCH returns empty (row doesn't exist yet), fall back to POST insert
   const d = await r.json();
   if (!d || (Array.isArray(d) && d.length === 0)) {
     const r2 = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
