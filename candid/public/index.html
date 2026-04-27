@@ -1506,6 +1506,10 @@ html, body {
       </div>
       <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem;">
         <div class="field">
+          <div class="field-label">Name</div>
+          <input class="field-input" type="text" id="edit-name" placeholder="Your name">
+        </div>
+        <div class="field">
           <div class="field-label">What I want to be found for</div>
           <input class="field-input" type="text" id="edit-tagline" placeholder="One line. The truest version." oninput="previewTrustSignal()">
         </div>
@@ -2447,6 +2451,7 @@ async function loadYouTab() {
     if (el('you-name')) el('you-name').textContent = profile.name||'—';
     if (el('you-role')) el('you-role').textContent = profile.tagline||'—';
     if (el('you-link')) el('you-link').textContent = profile.candid_link||'—';
+    if (el('edit-name')) el('edit-name').value = profile.name||'';
     if (el('edit-tagline')) el('edit-tagline').value = profile.tagline||'';
     if (el('edit-focus')) el('edit-focus').value = profile.current_focus||'';
     if (el('edit-achievement')) el('edit-achievement').value = profile.achievement||'';
@@ -2487,6 +2492,7 @@ async function saveProfile() {
     const el = id => document.getElementById(id);
     const { id: _id, ...body } = {
       id: uid,
+      name: el('edit-name')?.value.trim()||'',
       tagline: el('edit-tagline')?.value.trim()||'',
       current_focus: el('edit-focus')?.value.trim()||'',
       achievement: el('edit-achievement')?.value.trim()||'',
@@ -2497,7 +2503,9 @@ async function saveProfile() {
       headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token},
       body: JSON.stringify(body)
     });
+    if (el('yc-name')) el('yc-name').textContent = body.name || body.tagline;
     if (el('yc-role')) el('yc-role').textContent = body.tagline;
+    if (el('you-name')) el('you-name').textContent = body.name || '—';
     if (el('you-role')) el('you-role').textContent = body.tagline;
     previewTrustSignal();
     if (btn) { btn.textContent='Saved ✓'; btn.disabled=false; setTimeout(()=>{btn.textContent='Save';},2000); }
@@ -2519,13 +2527,18 @@ async function handlePhotoUpload(input) {
     try {
       const ext = file.name.split('.').pop();
       const path = `${uid}/avatar.${ext}`;
+      // Try DELETE first to handle upsert on free tier
+      await fetch(`${SUPA_URL}/storage/v1/object/avatars/${path}`, {
+        method:'DELETE',
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token}
+      }).catch(()=>{});
       const uploadRes = await fetch(`${SUPA_URL}/storage/v1/object/avatars/${path}`, {
         method:'POST',
         headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token,'Content-Type':file.type,'x-upsert':'true'},
         body: file
       });
       if (uploadRes.ok) {
-        const photo_url = `${SUPA_URL}/storage/v1/object/public/avatars/${path}`;
+        const photo_url = `${SUPA_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
         await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}`, {
           method:'PATCH',
           headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token},
