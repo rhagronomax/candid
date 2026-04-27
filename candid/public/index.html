@@ -1249,6 +1249,15 @@ html, body {
 
     <div class="onboard-body" style="padding:0;flex:1;display:flex;flex-direction:column;">
 
+      <!-- Name entry (shown first, hidden after submission) -->
+      <div id="ob-name-area" style="padding:1.5rem;border-bottom:1px solid var(--line);">
+        <div style="font-size:0.75rem;font-weight:600;color:#aaa;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem;">First name</div>
+        <div style="display:flex;gap:0.75rem;">
+          <input class="field-input" type="text" id="input-name" placeholder="What do people call you?" style="flex:1;" onkeydown="if(event.key==='Enter') submitName()">
+          <button onclick="submitName()" style="background:var(--vibe);color:var(--ink);border:none;border-radius:100px;padding:0.75rem 1.25rem;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;white-space:nowrap;">Start →</button>
+        </div>
+      </div>
+
       <!-- Chat window -->
       <div id="ob-chat" style="flex:1;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;"></div>
 
@@ -1982,7 +1991,15 @@ function goStep(n) {
   document.querySelectorAll('#onboarding > div').forEach(d => d.style.display = 'none');
   const step = document.getElementById('step-'+n);
   if (step) step.style.display = 'flex';
-  if (n === 2) startObConversation();
+  // Step 2: show name area, hide chat input until name submitted
+  if (n === 2) {
+    const nameArea = document.getElementById('ob-name-area');
+    if (nameArea) nameArea.style.display = 'block';
+    const inputArea = document.getElementById('ob-input-area');
+    if (inputArea) inputArea.style.display = 'none';
+    obSetInputEnabled(false);
+    setTimeout(() => document.getElementById('input-name')?.focus(), 100);
+  }
 }
 
 function selectVibe(tag, el) {
@@ -2598,11 +2615,10 @@ function retrySummary() {
   obState = { step:0, probeCount:0, answers:[], done:false };
   const chat = document.getElementById('ob-chat');
   if (chat) chat.innerHTML = '';
-  const summaryBox = document.getElementById('ob-summary');
-  if (summaryBox) summaryBox.style.display = 'none';
-  const inputArea = document.getElementById('ob-input-area');
-  if (inputArea) inputArea.style.display = 'flex';
-  startObConversation();
+  document.getElementById('ob-summary')?.style && (document.getElementById('ob-summary').style.display = 'none');
+  document.getElementById('ob-input-area') && (document.getElementById('ob-input-area').style.display = 'flex');
+  const name = document.getElementById('input-name')?.value.trim() || '';
+  startObConversation(name);
 }
 
 // ── AI ONBOARDING CONVERSATION ──
@@ -2728,12 +2744,24 @@ async function sendObMessage() {
   }
 }
 
-function startObConversation() {
+function submitName() {
+  const nameEl = document.getElementById('input-name');
+  const name = nameEl?.value.trim();
+  if (!name) return;
+  const nameArea = document.getElementById('ob-name-area');
+  if (nameArea) nameArea.style.display = 'none';
+  const inputArea = document.getElementById('ob-input-area');
+  if (inputArea) inputArea.style.display = 'flex';
+  startObConversation(name);
+}
+
+function startObConversation(name) {
   obState = { step:0, probeCount:0, answers:[], done:false };
   const chat = document.getElementById('ob-chat');
   if (chat) chat.innerHTML = '';
+  const greeting = name ? `Hey ${name} —` : 'Hey —';
   setTimeout(() => {
-    obAddMessage("Hey — I'm going to ask you three honest questions. Your answers become your Candid identity.");
+    obAddMessage(`${greeting} I'm going to ask you three honest questions. Your answers become your Candid identity.`);
     setTimeout(() => { obAddTyping(); setTimeout(() => { obRemoveTyping(); obAddMessage(OB_QUESTIONS[0].text); obSetInputEnabled(true); }, 800); }, 600);
   }, 300);
 }
