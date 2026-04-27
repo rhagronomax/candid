@@ -1678,6 +1678,14 @@ async function supaSignIn(email, password) {
   return r.json();
 }
 
+async function supaRefreshToken(refreshToken) {
+  const r = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+    body: JSON.stringify({refresh_token: refreshToken})
+  });
+  return r.json();
+}
+
 async function supaGetProfile(token) {
   if (!token) return null;
   try {
@@ -1743,9 +1751,15 @@ function showError(id, msg) {
   const saved = localStorage.getItem('candid_session');
   if (!saved) return;
   try {
-    const sess = JSON.parse(saved);
+    let sess = JSON.parse(saved);
     const exp = JSON.parse(atob(sess.access_token.split('.')[1])).exp;
-    if (exp * 1000 < Date.now()) { localStorage.removeItem('candid_session'); return; }
+    if (exp * 1000 < Date.now()) {
+      if (!sess.refresh_token) { localStorage.removeItem('candid_session'); return; }
+      const refreshed = await supaRefreshToken(sess.refresh_token);
+      if (refreshed.error || !refreshed.access_token) { localStorage.removeItem('candid_session'); return; }
+      sess = { access_token: refreshed.access_token, refresh_token: refreshed.refresh_token };
+      localStorage.setItem('candid_session', JSON.stringify(sess));
+    }
     _session = sess;
     const profile = await supaGetProfile(sess.access_token);
     populateUI(profile);
