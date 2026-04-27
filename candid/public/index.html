@@ -1971,20 +1971,18 @@ async function launchApp() {
 
 
 // ── ONBOARDING ──
-function selectMode(mode, el) {
+function selectMode(el, mode) {
   selectedMode = mode;
   document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('step1-next').disabled = false;
 }
 
-function goToStep(n) {
-  document.querySelectorAll('.onboard-step').forEach(s => s.style.display = 'none');
-  const step = document.getElementById('step'+n);
+function goStep(n) {
+  document.querySelectorAll('#onboarding > div').forEach(d => d.style.display = 'none');
+  const step = document.getElementById('step-'+n);
   if (step) step.style.display = 'flex';
-  document.querySelectorAll('.step-dot').forEach((d,i) => {
-    d.classList.toggle('active', i === n-1);
-  });
+  if (n === 2) startObConversation();
 }
 
 function selectVibe(tag, el) {
@@ -2575,6 +2573,170 @@ document.addEventListener('focusin', (e) => {
     setTimeout(() => e.target.scrollIntoView({ behavior:'smooth', block:'center' }), 300);
   }
 });
+
+// ── MISSING FUNCTIONS ──
+function trackConnect() { /* Future analytics */ }
+
+function toggleVibe(el) {
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected');
+    selectedVibes = selectedVibes.filter(v => v !== el.textContent);
+  } else {
+    if (selectedVibes.length >= 3) return;
+    el.classList.add('selected');
+    selectedVibes.push(el.textContent);
+  }
+}
+
+function approveSummary() {
+  const summaryBox = document.getElementById('ob-summary');
+  if (summaryBox) summaryBox.style.display = 'none';
+  goStep(3);
+}
+
+function retrySummary() {
+  obState = { step:0, probeCount:0, answers:[], done:false };
+  const chat = document.getElementById('ob-chat');
+  if (chat) chat.innerHTML = '';
+  const summaryBox = document.getElementById('ob-summary');
+  if (summaryBox) summaryBox.style.display = 'none';
+  const inputArea = document.getElementById('ob-input-area');
+  if (inputArea) inputArea.style.display = 'flex';
+  startObConversation();
+}
+
+// ── AI ONBOARDING CONVERSATION ──
+const OB_QUESTIONS = [
+  { id:'q1', text:"What are you working on right now that actually matters to you — not your job title, the real thing?" },
+  { id:'q2', text:"What's something you figured out or built that you're quietly proud of — doesn't have to be impressive to anyone else?" },
+  { id:'q3', text:"What kind of person or opportunity would make you drop everything to respond?" }
+];
+
+let obState = { step:0, probeCount:0, answers:[], done:false };
+
+function obAddMessage(text, isUser=false) {
+  const chat = document.getElementById('ob-chat');
+  if (!chat) return;
+  const msg = document.createElement('div');
+  msg.style.cssText = `display:flex;${isUser?'justify-content:flex-end':'justify-content:flex-start'}`;
+  msg.innerHTML = `<div style="max-width:85%;padding:0.85rem 1.1rem;border-radius:${isUser?'16px 16px 4px 16px':'16px 16px 16px 4px'};background:${isUser?'var(--vibe)':'var(--warm)'};color:${isUser?'var(--ink)':'var(--white)'};font-size:0.88rem;line-height:1.6;border:1px solid ${isUser?'transparent':'var(--line)'};">${text}</div>`;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function obAddTyping() {
+  const chat = document.getElementById('ob-chat');
+  if (!chat) return;
+  const el = document.createElement('div');
+  el.id = 'ob-typing';
+  el.style.cssText = 'display:flex;justify-content:flex-start;';
+  el.innerHTML = `<div style="padding:0.85rem 1.1rem;border-radius:16px 16px 16px 4px;background:var(--warm);border:1px solid var(--line);display:flex;gap:4px;align-items:center;"><span style="width:6px;height:6px;background:var(--muted);border-radius:50%;animation:pulse 1.2s ease-in-out infinite;"></span><span style="width:6px;height:6px;background:var(--muted);border-radius:50%;animation:pulse 1.2s ease-in-out infinite;animation-delay:0.2s;"></span><span style="width:6px;height:6px;background:var(--muted);border-radius:50%;animation:pulse 1.2s ease-in-out infinite;animation-delay:0.4s;"></span></div>`;
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function obRemoveTyping() { document.getElementById('ob-typing')?.remove(); }
+
+function obSetInputEnabled(enabled) {
+  const input = document.getElementById('ob-user-input');
+  const btn = document.getElementById('ob-send-btn');
+  if (input) { input.disabled = !enabled; if(enabled) input.focus(); }
+  if (btn) btn.disabled = !enabled;
+}
+
+function isVague(text) {
+  const t = text.trim().toLowerCase();
+  if (t.split(' ').length < 8) return true;
+  const vague = ['i work in','i am in',"i'm in",'i do','lots of','it depends','not sure','everything','anything'];
+  return vague.some(p => t.startsWith(p) && t.split(' ').length < 12);
+}
+
+async function getProbe(question, answer) {
+  const r = await fetch('/api/claude', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ system:'Ask ONE specific follow-up question (max 15 words) to get a more concrete answer. No preamble.', message:`Question: "${question}"\nAnswer: "${answer}"`, maxTokens:60 })
+  });
+  const d = await r.json();
+  return d.text || "Can you be more specific — what exactly are you working on?";
+}
+
+async function generateProfileSummary(name, answers) {
+  const r = await fetch('/api/claude', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      system:'Extract profile data and return ONLY a JSON object. No preamble, no markdown.',
+      message:`Name: ${name}\nQ1: ${answers[0]||''}\nQ2: ${answers[1]||''}\nQ3: ${answers[2]||''}\n\nReturn JSON: {"tagline":"","current_focus":"","achievement":"","open_to":"","summary":""}`,
+      maxTokens:400
+    })
+  });
+  const d = await r.json();
+  try { return JSON.parse(d.text.replace(/\`\`\`json|\`\`\`/g,'').trim()); } catch(e) { return null; }
+}
+
+async function sendObMessage() {
+  const input = document.getElementById('ob-user-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text || obState.done) return;
+  obAddMessage(text, true);
+  input.value = ''; input.style.height = '48px';
+  obSetInputEnabled(false);
+  if (!obState.answers[obState.step]) obState.answers[obState.step] = '';
+  obState.answers[obState.step] += (obState.answers[obState.step]?' ':'')+text;
+  obAddTyping();
+  await new Promise(r => setTimeout(r, 800));
+  obRemoveTyping();
+  if (isVague(text) && obState.probeCount < 2) {
+    obState.probeCount++;
+    const probe = await getProbe(OB_QUESTIONS[obState.step].text, text);
+    obAddMessage(probe);
+    obSetInputEnabled(true);
+    return;
+  }
+  obState.step++;
+  obState.probeCount = 0;
+  if (obState.step < OB_QUESTIONS.length) {
+    const transitions = ['Got it.','Good.',"That's helpful."];
+    obAddMessage(transitions[obState.step-1]||'Good.');
+    await new Promise(r => setTimeout(r, 400));
+    obAddTyping();
+    await new Promise(r => setTimeout(r, 600));
+    obRemoveTyping();
+    obAddMessage(OB_QUESTIONS[obState.step].text);
+    obSetInputEnabled(true);
+  } else {
+    obState.done = true;
+    obAddMessage("One moment — I'm putting together how Candid will describe you…");
+    obSetInputEnabled(false);
+    const name = document.getElementById('input-name')?.value.trim()||'';
+    const extracted = await generateProfileSummary(name, obState.answers);
+    const el = id => document.getElementById(id);
+    if (extracted) {
+      if (el('input-found')) el('input-found').value = extracted.tagline||'';
+      if (el('input-focus')) el('input-focus').value = extracted.current_focus||'';
+      if (el('input-built')) el('input-built').value = extracted.achievement||'';
+      if (el('input-open')) el('input-open').value = extracted.open_to||'';
+      if (el('ob-summary-text')) el('ob-summary-text').textContent = extracted.summary||'';
+      if (el('ob-summary')) el('ob-summary').style.display = 'block';
+      if (el('ob-input-area')) el('ob-input-area').style.display = 'none';
+    } else {
+      if (el('input-found')) el('input-found').value = obState.answers[0]||'';
+      if (el('input-built')) el('input-built').value = obState.answers[1]||'';
+      if (el('input-open')) el('input-open').value = obState.answers[2]||'';
+      approveSummary();
+    }
+  }
+}
+
+function startObConversation() {
+  obState = { step:0, probeCount:0, answers:[], done:false };
+  const chat = document.getElementById('ob-chat');
+  if (chat) chat.innerHTML = '';
+  setTimeout(() => {
+    obAddMessage("Hey — I'm going to ask you three honest questions. Your answers become your Candid identity.");
+    setTimeout(() => { obAddTyping(); setTimeout(() => { obRemoveTyping(); obAddMessage(OB_QUESTIONS[0].text); obSetInputEnabled(true); }, 800); }, 600);
+  }, 300);
+}
 
 </script>
 </html>
