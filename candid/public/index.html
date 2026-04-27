@@ -1691,12 +1691,23 @@ async function supaGetProfile(token) {
 }
 
 async function supaUpsertProfile(profile, token) {
-  const r = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Prefer':'resolution=merge-duplicates,return=representation'},
-    body: JSON.stringify(profile)
+  const uid = profile.id;
+  const { id, ...body } = profile;
+  const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
+    body: JSON.stringify(body)
   });
   const d = await r.json();
+  if (!d || (Array.isArray(d) && d.length === 0)) {
+    const r2 = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Prefer':'resolution=merge-duplicates,return=representation'},
+      body: JSON.stringify(profile)
+    });
+    const d2 = await r2.json();
+    return Array.isArray(d2) ? d2[0] : d2;
+  }
   return Array.isArray(d) ? d[0] : d;
 }
 
