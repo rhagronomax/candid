@@ -1708,12 +1708,34 @@ async function supaGetProfile(token) {
 }
 
 async function supaUpsertProfile(profile, token) {
-  const r = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Prefer':'resolution=merge-duplicates,return=representation'},
+  const uid = profile.id;
+  // Use PATCH to update existing row — POST upsert requires service key
+  const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + token,
+      'Prefer': 'return=representation'
+    },
     body: JSON.stringify(profile)
   });
+  // If PATCH returns empty (row doesn't exist yet), fall back to POST insert
   const d = await r.json();
+  if (!d || (Array.isArray(d) && d.length === 0)) {
+    const r2 = await fetch(`${SUPA_URL}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Prefer': 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify(profile)
+    });
+    const d2 = await r2.json();
+    return Array.isArray(d2) ? d2[0] : d2;
+  }
   return Array.isArray(d) ? d[0] : d;
 }
 
@@ -2433,32 +2455,54 @@ function _localSendFallback(matchName, matchData, text, btn) {
 async function loadMessages() {
   if (!_session) return;
   try {
-    const res = await fetch('/api/messages', { headers: authHeaders() });
+    const myId = _myUserId();
+    // Get all messages involving this user, ordered by time
+    const res = await fetch(`${SUPA_URL}/rest/v1/messages?or=(sender_id.eq.${myId},recipient_id.eq.${myId})&order=created_at.asc&select=*`, {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + _session.access_token }
+    });
     if (!res.ok) return;
-    const threads = await res.json();
-    if (!Array.isArray(threads) || !threads.length) return;
+    const msgs = await res.json();
+    if (!Array.isArray(msgs) || !msgs.length) return;
 
-    // Fetch profile data for each thread partner
-    for (const thread of threads) {
-      const partnerId = thread.sender_id === _myUserId() ? thread.recipient_id : thread.sender_id;
-      const profRes = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${partnerId}&select=name,tagline,vibe_tags,anonymous_mode`, {
-        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + _session.access_token }
-      });
-      const profs = await profRes.json();
-      const prof = Array.isArray(profs) ? profs[0] : null;
+    // Group by conversation partner
+    const threads = {};
+    for (const msg of msgs) {
+      const partnerId = msg.sender_id === myId ? msg.recipient_id : msg.sender_id;
+      if (!threads[partnerId]) threads[partnerId] = [];
+      threads[partnerId].push(msg);
+    }
+
+    // Fetch profiles for all partners at once
+    const partnerIds = Object.keys(threads);
+    const profRes = await fetch(
+      `${SUPA_URL}/rest/v1/profiles?id=in.(${partnerIds.join(',')})&select=id,name,tagline,anonymous_mode`,
+      { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + _session.access_token } }
+    );
+    const profs = await profRes.json();
+    const profMap = {};
+    (Array.isArray(profs) ? profs : []).forEach(p => { profMap[p.id] = p; });
+
+    // Rebuild conversations keyed by partnerId
+    for (const [partnerId, threadMsgs] of Object.entries(threads)) {
+      const prof = profMap[partnerId];
       const name = prof ? (prof.anonymous_mode ? 'Anonymous' : prof.name) : 'Someone';
       const role = prof?.tagline || '';
-      // Key by partnerId UUID for consistency with sendMessage
-      if (!conversations[partnerId]) {
-        conversations[partnerId] = { name, role, avatar: '🧑', level: 'vibe', messages: [], id: partnerId };
-      }
-      conversations[partnerId].messages = [{
-        from: thread.sender_id === _myUserId() ? 'me' : name,
-        text: thread.body,
-        time: new Date(thread.created_at).toLocaleDateString()
-      }];
-      conversations[partnerId].unread = thread.read === false && thread.sender_id !== _myUserId() ? 1 : 0;
+      const hasUnread = threadMsgs.some(m => m.sender_id === partnerId && !m.read);
+      conversations[partnerId] = {
+        name,
+        role,
+        avatar: '🧑',
+        level: conversations[partnerId]?.level || 'vibe',
+        id: partnerId,
+        unread: hasUnread ? 1 : 0,
+        messages: threadMsgs.map(m => ({
+          from: m.sender_id === myId ? 'me' : name,
+          text: m.body,
+          time: new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+        }))
+      };
     }
+
     updateMessagesTab();
 
     // Update unread badge
