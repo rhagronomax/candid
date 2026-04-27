@@ -989,7 +989,7 @@ html, body {
 .msg-sheet {
   background: var(--sand);
   border-radius: 24px 24px 0 0;
-  padding: 1.5rem 1.5rem 2.5rem;
+  padding: 1.5rem 1.5rem max(2.5rem, env(safe-area-inset-bottom));
   width: 100%;
   max-width: 480px;
   border-top: 1px solid var(--line);
@@ -1415,6 +1415,13 @@ html, body {
   </div>
 
   <div style="height:2rem;"></div>
+
+  <!-- Find more -->
+  <div style="padding:0 1.5rem 1.5rem;text-align:center;">
+    <button id="find-more-btn" onclick="findMore()" style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:100px;padding:0.75rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.2s;width:100%;">
+      Find more people →
+    </button>
+  </div>
 
   <!-- Bottom nav -->
   <div class="bottom-nav">
@@ -1867,9 +1874,35 @@ async function launchApp() {
   }
 }
 
-// ── SPLASH ──
-function startOnboarding() { showScreen('onboarding'); }
-function skipToApp() { showScreen('screen-signin'); }
+// ── FIND MORE ──
+async function findMore() {
+  const btn = document.getElementById('find-more-btn');
+  if (btn) { btn.textContent = 'Looking…'; btn.disabled = true; }
+  try {
+    const res = await fetch('/api/matches', { method: 'POST', headers: authHeaders() });
+    const newMatches = await res.json();
+    if (btn) { btn.textContent = 'Find more people →'; btn.disabled = false; }
+    if (!Array.isArray(newMatches) || !newMatches.length) {
+      showToast('You\'ve seen everyone for now — check back soon', 'info');
+      return;
+    }
+    showToast(`${newMatches.length} new ${newMatches.length === 1 ? 'find' : 'finds'} added`, 'success');
+    loadRealMatches();
+  } catch(e) {
+    if (btn) { btn.textContent = 'Find more people →'; btn.disabled = false; }
+    showToast('Could not load more finds', 'error');
+  }
+}
+
+// ── iOS KEYBOARD FIX ──
+// When keyboard opens, scroll message input into view
+document.addEventListener('focusin', (e) => {
+  if (e.target.id === 'msg-text' || e.target.classList.contains('msg-input')) {
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  }
+});
 
 // ── UTILITIES ──
 function showToast(msg, type='success') {
@@ -1975,9 +2008,10 @@ async function loadRealMatches() {
       const focus = p.current_focus ? `<div class="pro-layer"><div class="pro-layer-label">Currently</div>${p.current_focus}</div>` : '';
       const trust = renderTrustSignal(p);
       const matchedUid = m.matched_user_id || '';
-      const safeArgs = [name,role,lvl,emoji,why,(p.vibe_tags||[]).join(', '),tags,p.achievement||'',p.open_to||'',matchedUid].map(a => typeof a === 'string' ? a.replace(/'/g,"\\'") : a);
+      const matchId = m.id || '';
+      const safeArgs = [name,role,lvl,emoji,why,(p.vibe_tags||[]).join(', '),tags,p.achievement||'',p.open_to||'',matchedUid,matchId].map(a => typeof a === 'string' ? a.replace(/'/g,"\\'") : a);
 
-      return `<div class="match-card slide-up" data-level="${lvl}" data-uid="${matchedUid}" style="animation-delay:${i*0.1}s" onclick="openMatch('${safeArgs[0]}','${safeArgs[1]}','${safeArgs[2]}','${safeArgs[3]}','${safeArgs[4]}','${safeArgs[5]}',${JSON.stringify(tags)},'${safeArgs[7]}','${safeArgs[8]}','${safeArgs[9]}')">
+      return `<div class="match-card slide-up" data-level="${lvl}" data-uid="${matchedUid}" data-match-id="${matchId}" style="animation-delay:${i*0.1}s" onclick="openMatch('${safeArgs[0]}','${safeArgs[1]}','${safeArgs[2]}','${safeArgs[3]}','${safeArgs[4]}','${safeArgs[5]}',${JSON.stringify(tags)},'${safeArgs[7]}','${safeArgs[8]}','${safeArgs[9]}','${safeArgs[10]}')">
         <div class="match-card-top">
           <div class="match-avatar">${emoji}</div>
           <div class="match-info">
@@ -2177,9 +2211,9 @@ function switchTab(tab, btn) {
 }
 
 // ── MATCH DETAIL ──
-function openMatch(name, role, level, avatar, why, vibes, tags, built, open, matchedUserId) {
+function openMatch(name, role, level, avatar, why, vibes, tags, built, open, matchedUserId, matchId) {
   currentMatch = name.split(' ')[0];
-  currentMatchData = { name, role, level, avatar, why, vibes, built: built||'—', open: open||'—', id: matchedUserId||null };
+  currentMatchData = { name, role, level, avatar, why, vibes, built: built||'—', open: open||'—', id: matchedUserId||null, matchId: matchId||null };
   _currentRecipientId = matchedUserId || null;
   implicitSignals.opens[name] = (implicitSignals.opens[name]||0) + 1;
 
@@ -2264,9 +2298,29 @@ async function checkProfileConsistency(name, found, built, open) {
   return !result.includes('INCONSISTENT');
 }
 
-function recordMiss(reason) {
+async function recordMiss(reason) {
   implicitSignals.passes[currentMatch] = reason;
   intentDrift[reason] = (intentDrift[reason]||0) + 1;
+
+  // Persist dismiss to DB
+  const matchId = currentMatchData.matchId;
+  if (matchId) {
+    try {
+      await fetch('/api/matches', {
+        method: 'DELETE',
+        headers: authHeaders(),
+        body: JSON.stringify({ matchId })
+      });
+      // Animate card out
+      const card = document.querySelector(`.match-card[data-uid="${currentMatchData.id}"]`);
+      if (card) {
+        card.style.transition = 'all 0.3s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(-20px)';
+        setTimeout(() => card.remove(), 300);
+      }
+    } catch(e) { console.log('dismiss error', e.message); }
+  }
   closeDetail();
 }
 
@@ -2320,6 +2374,14 @@ async function sendMessage() {
       body: JSON.stringify({ recipient_id: recipientId, body: text, match_id: matchData.matchId || null })
     });
     const msg = await res.json();
+
+    // Fire notification (non-blocking)
+    const myName = document.getElementById('yc-name')?.textContent || 'Someone';
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ type: 'new_message', recipientId, senderName: myName })
+    }).catch(() => {});
 
     if (!conversations[matchName]) {
       conversations[matchName] = { name: matchData.name||matchName, role: matchData.role||'', avatar: matchData.avatar||'🧑', level: matchData.level||'vibe', messages: [], id: recipientId };

@@ -15,7 +15,10 @@ export default async (req) => {
   if (!userId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
 
   if (req.method === "GET") {
-    const res = await fetch(`${SURL}/rest/v1/matches?user_id=eq.${userId}&status=neq.dismissed&select=*,matched_profile:profiles!matches_matched_user_id_fkey(id,name,tagline,achievement,open_to,vibe_tags,anonymous_mode,current_focus,photo_url)&order=created_at.desc`, { headers: h });
+    const res = await fetch(
+      `${SURL}/rest/v1/matches?user_id=eq.${userId}&status=neq.dismissed&select=*,matched_profile:profiles!matches_matched_user_id_fkey(id,name,tagline,achievement,open_to,vibe_tags,anonymous_mode,current_focus,photo_url,has_messaged)&order=created_at.desc`,
+      { headers: h }
+    );
     return new Response(await res.text(), { status: 200, headers: { "Content-Type": "application/json" } });
   }
 
@@ -29,7 +32,10 @@ export default async (req) => {
     const existing = await existingRes.json();
     const excludeIds = [userId, ...(existing || []).map(m => m.matched_user_id)];
 
-    const candidatesRes = await fetch(`${SURL}/rest/v1/profiles?id=not.in.(${excludeIds.join(",")})&select=*&limit=5`, { headers: h });
+    const candidatesRes = await fetch(
+      `${SURL}/rest/v1/profiles?id=not.in.(${excludeIds.join(",")})&select=*&limit=5`,
+      { headers: h }
+    );
     const candidates = await candidatesRes.json();
     if (!candidates?.length) return new Response(JSON.stringify([]), { status: 200 });
 
@@ -46,14 +52,43 @@ export default async (req) => {
           })
         });
         const aiData = await aiRes.json();
-        const parsed = JSON.parse(aiData.content[0].text.replace(/```json|```/g,"").trim());
+        const parsed = JSON.parse(aiData.content[0].text.replace(/```json|```/g, "").trim());
         reason = parsed.reason; type = parsed.type;
       } catch {}
+
       const matchRes = await fetch(`${SURL}/rest/v1/matches`, {
         method: "POST", headers: h,
         body: JSON.stringify({ user_id: userId, matched_user_id: candidate.id, match_type: type, match_reason: reason })
       });
       const match = await matchRes.json();
+
+      // Create mutual B->A match if it doesn't exist
+      const mutualCheck = await fetch(
+        `${SURL}/rest/v1/matches?user_id=eq.${candidate.id}&matched_user_id=eq.${userId}&select=id`,
+        { headers: h }
+      );
+      const mutual = await mutualCheck.json();
+      if (!mutual?.length) {
+        let rr = reason, rt = type;
+        try {
+          const rAi = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01" },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514", max_tokens: 150,
+              messages: [{ role: "user", content: `Match reason (max 20 words) + type (chemistry/connection/vibe) for:\nA: ${candidate.name}, ${candidate.tagline}\nB: ${myProfile.name}, ${myProfile.tagline}\nJSON only: {"reason":"...","type":"..."}` }]
+            })
+          });
+          const rData = await rAi.json();
+          const rp = JSON.parse(rData.content[0].text.replace(/```json|```/g, "").trim());
+          rr = rp.reason; rt = rp.type;
+        } catch {}
+        await fetch(`${SURL}/rest/v1/matches`, {
+          method: "POST", headers: h,
+          body: JSON.stringify({ user_id: candidate.id, matched_user_id: userId, match_type: rt, match_reason: rr })
+        });
+      }
+
       if (match[0]) newMatches.push({ ...match[0], matched_profile: candidate });
     }
     return new Response(JSON.stringify(newMatches), { status: 200 });
