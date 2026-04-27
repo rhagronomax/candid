@@ -2485,7 +2485,7 @@ async function sendMessage() {
     const mt = document.getElementById('msg-text');
     if (mt) { mt.value = ''; mt.style.height = 'auto'; }
     // Update conversations cache
-    const convKey = recipientId;
+    // convKey already declared above
     if (!conversations[convKey]) {
       conversations[convKey] = { name: matchData.name||matchName, role: matchData.role||'', avatar: '🧑', level: matchData.level||'vibe', messages: [], id: recipientId };
     }
