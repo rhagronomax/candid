@@ -2539,13 +2539,13 @@ async function handlePhotoUpload(input) {
     const path = `${uid}/avatar.${ext}`;
 
     // Delete existing first
-    await fetch(`${SUPA_URL}/storage/v1/object/AVATAR/${path}`, {
+    await fetch(`${SUPA_URL}/storage/v1/object/avatar/${path}`, {
       method:'DELETE',
       headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token}
     }).catch(()=>{});
 
     // Upload new
-    const uploadRes = await fetch(`${SUPA_URL}/storage/v1/object/AVATAR/${path}`, {
+    const uploadRes = await fetch(`${SUPA_URL}/storage/v1/object/avatar/${path}`, {
       method:'POST',
       headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token,'Content-Type':file.type,'x-upsert':'true'},
       body: file
@@ -2555,7 +2555,7 @@ async function handlePhotoUpload(input) {
     console.log('Upload status:', uploadRes.status, uploadText);
 
     if (uploadRes.ok) {
-      const photo_url = `${SUPA_URL}/storage/v1/object/public/AVATAR/${path}?t=${Date.now()}`;
+      const photo_url = `${SUPA_URL}/storage/v1/object/public/avatar/${path}?t=${Date.now()}`;
       console.log('Saving photo_url:', photo_url);
       const patchRes = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${uid}`, {
         method:'PATCH',
