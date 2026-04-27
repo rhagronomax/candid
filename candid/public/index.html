@@ -1733,6 +1733,17 @@ function populateUI(profile) {
   if (el('yc-role')) el('yc-role').textContent = tagline;
   if (el('you-name')) el('you-name').textContent = name;
   if (el('you-role')) el('you-role').textContent = tagline;
+  // Load photo
+  if (profile.photo_url) {
+    const photoEl = el('profile-photo-display');
+    if (photoEl) photoEl.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  }
+  // Load edit fields
+  if (el('edit-tagline')) el('edit-tagline').value = profile.tagline || '';
+  if (el('edit-focus')) el('edit-focus').value = profile.current_focus || '';
+  if (el('edit-achievement')) el('edit-achievement').value = profile.achievement || '';
+  if (el('edit-open-to')) el('edit-open-to').value = profile.open_to || '';
+  if (el('you-link')) el('you-link').textContent = profile.candid_link || '';
 }
 
 function showScreen(id) {
