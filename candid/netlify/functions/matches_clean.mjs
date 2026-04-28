@@ -16,7 +16,7 @@ export default async (req) => {
 
   if (req.method === "GET") {
     const res = await fetch(
-      `${SURL}/rest/v1/matches?user_id=eq.${userId}&status=neq.dismissed&select=*,matched_profile:profiles!matches_matched_user_id_fkey(id,name,tagline,achievement,open_to,vibe_tags,anonymous_mode,current_focus,photo_url,has_messaged)&order=created_at.desc`,
+      `${SURL}/rest/v1/matches?user_id=eq.${userId}&status=neq.dismissed&select=*,matched_profile:profiles!matches_matched_user_id_fkey(id,name,tagline,achievement,open_to,vibe_tags,anonymous_mode,current_focus,photo_url,has_messaged,facets(id,name,description,sort_order))&order=created_at.desc`,
       { headers: h }
     );
     return new Response(await res.text(), { status: 200, headers: { "Content-Type": "application/json" } });
