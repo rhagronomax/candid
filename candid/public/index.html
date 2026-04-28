@@ -2595,6 +2595,10 @@ async function handlePhotoUpload(input) {
       });
       const patchText = await patchRes.text();
       console.log('Patch status:', patchRes.status, patchText);
+      if (patchRes.ok) {
+        const photoEl = document.getElementById('profile-photo-display');
+        if (photoEl) photoEl.innerHTML = `<img src="${photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      }
       showToast('Photo saved', 'success');
     } else {
       showToast('Upload failed — ' + uploadRes.status, 'error');
