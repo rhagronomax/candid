@@ -1498,6 +1498,20 @@ html, body {
       <div style="font-size:0.72rem;color:var(--muted);margin-top:0.75rem;line-height:1.5;" id="ts-you-hint">Fill in your profile below to light up your Trust Signal.</div>
     </div>
 
+    <!-- Facets -->
+    <div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:1.25rem;" id="facets-section">
+      <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:0.88rem;font-weight:600;color:var(--white);">Your facets</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:0.15rem;">How your matches see the layers of you.</div>
+        </div>
+        <button onclick="saveFacetEdits()" id="save-facets-btn" style="background:var(--vibe);color:var(--ink);border:none;border-radius:100px;padding:0.4rem 1rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;display:none;">Save</button>
+      </div>
+      <div id="facets-editor" style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem;">
+        <div style="font-size:0.82rem;color:var(--muted);font-style:italic;">Complete onboarding to generate your facets.</div>
+      </div>
+    </div>
+
     <!-- Edit Profile -->
     <div style="background:var(--warm);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:1.25rem;">
       <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
@@ -1812,6 +1826,60 @@ async function supaUpsertProfile(profile, token) {
   return Array.isArray(d) ? d[0] : d;
 }
 
+
+// ── FACET HELPERS ──
+async function loadFacets(token) {
+  try {
+    const uid = myUserId();
+    const r = await fetch(`${SUPA_URL}/rest/v1/facets?profile_id=eq.${uid}&order=sort_order.asc`, {
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
+    });
+    const facets = await r.json();
+    const container = document.getElementById('facets-editor');
+    const saveBtn = document.getElementById('save-facets-btn');
+    if (!container) return;
+    if (!facets || !facets.length) {
+      container.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);font-style:italic;">Complete onboarding to generate your facets.</div>';
+      return;
+    }
+    if (saveBtn) saveBtn.style.display = 'block';
+    container.innerHTML = facets.map((f, i) => `
+      <div style="border:1px solid var(--line);border-radius:12px;padding:1rem;" data-facet-id="${f.id}">
+        <input class="field-input" type="text" value="${(f.name||'').replace(/"/g,'&quot;')}" placeholder="Facet name" style="margin-bottom:0.65rem;font-weight:600;" data-facet-name="${i}">
+        <textarea class="field-input" rows="2" placeholder="One sentence in first person." style="resize:none;line-height:1.5;" data-facet-desc="${i}">${f.description||''}</textarea>
+        ${f.ai_suggested ? '<div style="font-size:0.65rem;color:var(--muted);margin-top:0.4rem;letter-spacing:0.05em;">✦ AI suggested — edit freely</div>' : ''}
+      </div>
+    `).join('');
+  } catch(e) { console.warn('loadFacets error:', e.message); }
+}
+
+async function saveFacetEdits() {
+  if (!_session) return;
+  const btn = document.getElementById('save-facets-btn');
+  if (btn) { btn.textContent='Saving…'; btn.disabled=true; }
+  try {
+    const cards = document.querySelectorAll('#facets-editor [data-facet-id]');
+    const updates = [];
+    cards.forEach(card => {
+      const id = card.dataset.facetId;
+      const name = card.querySelector('[data-facet-name]')?.value.trim()||'';
+      const description = card.querySelector('[data-facet-desc]')?.value.trim()||'';
+      updates.push({ id, name, description, ai_suggested: false });
+    });
+    await Promise.all(updates.map(u =>
+      fetch(`${SUPA_URL}/rest/v1/facets?id=eq.${u.id}`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+_session.access_token},
+        body: JSON.stringify({ name: u.name, description: u.description, ai_suggested: false })
+      })
+    ));
+    if (btn) { btn.textContent='Saved ✓'; btn.disabled=false; setTimeout(()=>{ btn.textContent='Save'; },2000); }
+    showToast('Facets updated', 'success');
+  } catch(e) {
+    if (btn) { btn.textContent='Save'; btn.disabled=false; }
+    showToast('Save failed', 'error');
+  }
+}
 
 // ── UI HELPERS ──
 async function saveFacets(uid, token, facets) {
@@ -2493,6 +2561,7 @@ async function loadYouTab() {
     const toggle = el('you-anon-toggle');
     if (toggle) toggle.classList.toggle('off', !profile.anonymous_mode);
     previewTrustSignal();
+    await loadFacets(_session.access_token);
   } catch(e) { console.log('loadYouTab error:', e.message); }
 }
 
