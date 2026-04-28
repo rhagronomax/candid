@@ -2227,8 +2227,9 @@ async function loadRealMatches() {
       const facetsHtml = facets.length ? `<div class="match-facets">${facets.map(f=>`<div class="match-facet"><span class="match-facet-name">${f.name}</span><span class="match-facet-desc">${f.description}</span></div>`).join('')}</div>` : '';
       const uid = m.matched_user_id || '';
       const mid = m.id || '';
+      matchFacetsCache[uid] = facets;
       const sa = [name,role,lvl,emoji,why,(p.vibe_tags||[]).join(', '),'',p.achievement||'',p.open_to||'',uid,mid].map(a => typeof a==='string'?a.replace(/'/g,"\\'").replace(/"/g,'&quot;'):a);
-      return `<div class="match-card slide-up" data-level="${lvl}" data-uid="${uid}" data-mid="${mid}" style="animation-delay:${i*0.1}s" onclick="openMatch('${sa[0]}','${sa[1]}','${sa[2]}','${sa[3]}','${sa[4]}','${sa[5]}',${JSON.stringify(tags)},'${sa[7]}','${sa[8]}','${sa[9]}','${sa[10]}',${JSON.stringify(facets)})">
+      return `<div class="match-card slide-up" data-level="${lvl}" data-uid="${uid}" data-mid="${mid}" style="animation-delay:${i*0.1}s" onclick="openMatch('${sa[0]}','${sa[1]}','${sa[2]}','${sa[3]}','${sa[4]}','${sa[5]}',${JSON.stringify(tags)},'${sa[7]}','${sa[8]}','${sa[9]}','${sa[10]}')">
         <div class="match-card-top">
           <div class="match-avatar">${emoji}</div>
           <div class="match-info">
@@ -2278,9 +2279,10 @@ async function findMore() {
 
 
 // ── MATCH DETAIL ──
-function openMatch(name, role, level, avatar, why, vibes, tags, built, open, matchedUserId, matchId, facets) {
+function openMatch(name, role, level, avatar, why, vibes, tags, built, open, matchedUserId, matchId) {
   currentMatch = name.split(' ')[0];
-  currentMatchData = { name, role, level, avatar, why, vibes, built:built||'—', open:open||'—', id:matchedUserId||null, matchId:matchId||null, facets:facets||[] };
+  const facets = matchFacetsCache[matchedUserId] || [];
+  currentMatchData = { name, role, level, avatar, why, vibes, built:built||'—', open:open||'—', id:matchedUserId||null, matchId:matchId||null, facets };
   currentRecipientId = matchedUserId || null;
   implicitSignals.opens[name] = (implicitSignals.opens[name]||0)+1;
   const el = id => document.getElementById(id);
@@ -2814,6 +2816,7 @@ const OB_QUESTIONS = [
 
 let obState = { step:0, probeCount:0, answers:[], done:false };
 let obFacets = [];
+let matchFacetsCache = {};
 
 function obAddMessage(text, isUser=false) {
   const chat = document.getElementById('ob-chat');
