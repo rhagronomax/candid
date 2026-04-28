@@ -2228,8 +2228,9 @@ async function loadRealMatches() {
       const uid = m.matched_user_id || '';
       const mid = m.id || '';
       matchFacetsCache[uid] = facets;
+      matchDataCache[uid] = { name, role: p.tagline||'', level: lvl, avatar: emoji, why, vibes: (p.vibe_tags||[]).join(', '), tags, built: p.achievement||'', open: p.open_to||'', matchId: mid, facets };
       const sa = [name,role,lvl,emoji,why,(p.vibe_tags||[]).join(', '),'',p.achievement||'',p.open_to||'',uid,mid].map(a => typeof a==='string'?a.replace(/'/g,"\\'").replace(/"/g,'&quot;'):a);
-      return `<div class="match-card slide-up" data-level="${lvl}" data-uid="${uid}" data-mid="${mid}" style="animation-delay:${i*0.1}s" onclick="openMatch('${sa[0]}','${sa[1]}','${sa[2]}','${sa[3]}','${sa[4]}','${sa[5]}',${JSON.stringify(tags)},'${sa[7]}','${sa[8]}','${sa[9]}','${sa[10]}')">
+      return `<div class="match-card slide-up" data-level="${lvl}" data-uid="${uid}" data-mid="${mid}" style="animation-delay:${i*0.1}s" onclick="openMatchById('${uid}')">
         <div class="match-card-top">
           <div class="match-avatar">${emoji}</div>
           <div class="match-info">
@@ -2279,6 +2280,18 @@ async function findMore() {
 
 
 // ── MATCH DETAIL ──
+function openMatchById(uid) {
+  const d = matchDataCache[uid];
+  if (!d) return;
+  openMatch(d.name, d.role, d.level, d.avatar, d.why, d.vibes, d.tags, d.built, d.open, uid, d.matchId);
+}
+
+function openMatchById(uid) {
+  const d = matchDataCache[uid];
+  if (!d) return;
+  openMatch(d.name, d.role, d.level, d.avatar, d.why, d.vibes, d.tags, d.built, d.open, uid, d.matchId);
+}
+
 function openMatch(name, role, level, avatar, why, vibes, tags, built, open, matchedUserId, matchId) {
   currentMatch = name.split(' ')[0];
   const facets = matchFacetsCache[matchedUserId] || [];
@@ -2817,6 +2830,7 @@ const OB_QUESTIONS = [
 let obState = { step:0, probeCount:0, answers:[], done:false };
 let obFacets = [];
 let matchFacetsCache = {};
+let matchDataCache = {};
 
 function obAddMessage(text, isUser=false) {
   const chat = document.getElementById('ob-chat');
