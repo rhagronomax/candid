@@ -1814,6 +1814,32 @@ async function supaUpsertProfile(profile, token) {
 
 
 // ── UI HELPERS ──
+async function saveFacets(uid, token, facets) {
+  if (!facets || !facets.length) return;
+  const rows = facets.map((f, i) => ({
+    profile_id: uid,
+    name: f.name || 'Facet',
+    description: f.description || '',
+    visibility: 'matches',
+    ai_suggested: true,
+    sort_order: i
+  }));
+  try {
+    await fetch(`${SUPA_URL}/rest/v1/facets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Prefer': 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify(rows)
+    });
+  } catch(e) {
+    console.warn('saveFacets failed:', e);
+  }
+}
+
 function populateUI(profile) {
   if (!profile) return;
   const el = id => document.getElementById(id);
@@ -1974,6 +2000,7 @@ async function launchApp() {
       anonymous_mode: true, has_messaged: false,
       candid_link: 'candid.so/'+name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')
     }, accessToken);
+    await saveFacets(uid, accessToken, obFacets);
     populateUI({ name, tagline: found });
     showScreen('app');
     checkFilterVisibility();
@@ -2669,6 +2696,7 @@ const OB_QUESTIONS = [
 ];
 
 let obState = { step:0, probeCount:0, answers:[], done:false };
+let obFacets = [];
 
 function obAddMessage(text, isUser=false) {
   const chat = document.getElementById('ob-chat');
@@ -2721,8 +2749,8 @@ async function generateProfileSummary(name, answers) {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       system:'Extract profile data and return ONLY a JSON object. No preamble, no markdown.',
-      message:`Name: ${name}\nQ1: ${answers[0]||''}\nQ2: ${answers[1]||''}\nQ3: ${answers[2]||''}\n\nReturn JSON: {"tagline":"","current_focus":"","achievement":"","open_to":"","summary":""}`,
-      maxTokens:400
+      message:`Name: ${name}\nQ1: ${answers[0]||''}\nQ2: ${answers[1]||''}\nQ3: ${answers[2]||''}\n\nReturn ONLY a JSON object, no markdown, no preamble:\n{\n  "tagline": "One sharp line under 12 words — what they want to be found for. Specific, not generic.",\n  "current_focus": "What they are actively working on right now. One sentence.",\n  "achievement": "The specific thing they built or solved. Evidence-based.",\n  "open_to": "What kind of person or opportunity they are looking for.",\n  "summary": "2-3 sentences in second person starting with You are. Warm but not sycophantic.",\n  "facets": [\n    {"name": "Short label e.g. Builder", "description": "One sentence in first person capturing this dimension."},\n    {"name": "Second distinct facet label", "description": "One sentence in first person."}\n  ]\n}\nGenerate 2-3 facets. At least one professional, one personal if answers support it. Each must be distinct.`,
+      maxTokens:700
     })
   });
   const d = await r.json();
@@ -2773,6 +2801,7 @@ async function sendObMessage() {
       if (el('input-built')) el('input-built').value = extracted.achievement||'';
       if (el('input-open')) el('input-open').value = extracted.open_to||'';
       if (el('ob-summary-text')) el('ob-summary-text').textContent = extracted.summary||'';
+      obFacets = extracted.facets || [];
       if (el('ob-summary')) el('ob-summary').style.display = 'block';
       if (el('ob-input-area')) el('ob-input-area').style.display = 'none';
     } else {
